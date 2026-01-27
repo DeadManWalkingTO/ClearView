@@ -63,10 +63,12 @@ class Status {
         Status.txt := f
 
         ; Τοποθέτηση: επάνω-δεξιά της κύριας περιοχής εργασίας
-        x := A_ScreenWorkAreaRight - Status.w - Status.margin
-        y := A_ScreenWorkAreaTop   + Status.margin
-        Status.gui.Show(Format("x{} y{} w{} h{} NA", x, y, Status.w, Status.h))
+        left := top := right := bottom := 0
+        MonitorGetWorkArea(1, &left, &top, &right, &bottom)  ; Πρωτεύουσα οθόνη
+        x := right - Status.w - Status.margin
+        y := top   + Status.margin
 
+        Status.gui.Show(Format("x{} y{} w{} h{} NA", x, y, Status.w, Status.h))
         ; Ελαφριά διαφάνεια
         WinSetTransparent(230, Status.gui.Hwnd)
     }
