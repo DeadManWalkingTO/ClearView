@@ -12,7 +12,8 @@ EDGE_PROC    := "msedge.exe"
 
 ; Προσαρμόστε αν χρειάζεται (x64 συνήθως: C:\Program Files\Microsoft\Edge\Application\msedge.exe)
 EDGE_EXE     := "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
-EDGE_PROFILE := '--profile-directory="Default"'
+; === Εδώ αλλάξαμε το προφίλ ===
+EDGE_PROFILE := '--profile-directory="Chryseis"'
 
 ; Playlists
 URL_ALL      := "https://www.youtube.com/playlist?list=PL1TQ_pTmsiADD0QnjnvlfoRV3kDUaFtXc&playnext=1&autoplay=1"
@@ -52,7 +53,7 @@ class Status {
         }
         ; +E0x08000000: No-Activate (δεν παίρνει focus)
         Status.gui := Gui("+AlwaysOnTop -Caption +ToolWindow +E0x08000000")
-        ; Αν θες click-through: πρόσθεσε +E0x20 παραπάνω
+        ; Αν θες click-through: πρόσθεσε +E0x20 στην παραπάνω γραμμή
         Status.gui.BackColor := "0x101010"
         f := Status.gui.Add("Text", "xm ym cWhite", initialText)
         f.SetFont("s10", "Segoe UI")
@@ -152,7 +153,7 @@ OpenEdge() {
         return true
     }
 
-    ; Αν δεν τρέχει διεργασία, άνοιξε τον Edge
+    ; Αν δεν τρέχει διεργασία, άνοιξε τον Edge με το ζητούμενο προφίλ
     if !ProcessExist(EDGE_PROC)
         Run('"' EDGE_EXE '" ' EDGE_PROFILE)
 
