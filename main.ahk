@@ -1,4 +1,4 @@
-﻿; ==================== main_v2_status.ahk (AHK v2) ====================
+﻿; ==================== main_v2_status_fixed.ahk (AHK v2) ====================
 #Requires AutoHotkey v2.0
 #SingleInstance Force
 
@@ -6,8 +6,11 @@ SetTitleMatchMode(2)
 SetWorkingDir(A_ScriptDir)
 
 ; ===== Ρυθμίσεις / Σταθερές =====
-EDGE_WIN     := "Microsoft Edge"
-; Προσαρμόστε αν χρειάζεται (x64 συνήθως είναι C:\Program Files\Microsoft\Edge\Application\msedge.exe)
+; Στόχευση παραθύρων/διεργασίας ΜΕ ΤΟ ΕΚΤΕΛΕΣΙΜΟ (σταθερό σε όλες τις γλώσσες/τίτλους)
+EDGE_WIN     := "ahk_exe msedge.exe"
+EDGE_PROC    := "msedge.exe"
+
+; Προσαρμόστε αν χρειάζεται (x64 συνήθως: C:\Program Files\Microsoft\Edge\Application\msedge.exe)
 EDGE_EXE     := "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
 EDGE_PROFILE := '--profile-directory="Default"'
 
@@ -39,41 +42,32 @@ CNT_GAMES := 62
 class Status {
     static gui := ""
     static txt := ""
-    static w := 380, h := 90       ; μέγεθος παραθύρου
-    static margin := 12            ; απόσταση από άκρη οθόνης
+    static w := 380, h := 90
+    static margin := 12
 
-    ; Δείξε panel (αν υπάρχει ήδη, απλά ενημερώνει)
     static Show(initialText := "Έναρξη…") {
         if (Status.gui != "") {
             Status.Update(initialText)
             return
         }
-        ; +AlwaysOnTop: πάντα πάνω
-        ; -Caption: χωρίς title bar
-        ; +ToolWindow: μικρό/non-taskbar window
-        ; +E0x08000000: WS_EX_NOACTIVATE (ΔΕΝ παίρνει focus)
-        ; Προαιρετικό click-through: προσθέστε +E0x20 (WS_EX_TRANSPARENT)
+        ; +E0x08000000: No-Activate (δεν παίρνει focus)
         Status.gui := Gui("+AlwaysOnTop -Caption +ToolWindow +E0x08000000")
-        ; --> Αν θες click-through, άλλαξε την προηγούμενη γραμμή σε:
-        ; Status.gui := Gui("+AlwaysOnTop -Caption +ToolWindow +E0x08000000 +E0x20")
-
-        Status.gui.BackColor := "0x101010"  ; σκούρο background
+        ; Αν θες click-through: πρόσθεσε +E0x20 παραπάνω
+        Status.gui.BackColor := "0x101010"
         f := Status.gui.Add("Text", "xm ym cWhite", initialText)
         f.SetFont("s10", "Segoe UI")
         Status.txt := f
 
-        ; Τοποθέτηση: επάνω-δεξιά της κύριας περιοχής εργασίας
+        ; Τοποθέτηση: επάνω-δεξιά της κύριας οθόνης
         left := top := right := bottom := 0
-        MonitorGetWorkArea(1, &left, &top, &right, &bottom)  ; Πρωτεύουσα οθόνη
+        MonitorGetWorkArea(1, &left, &top, &right, &bottom)
         x := right - Status.w - Status.margin
         y := top   + Status.margin
 
         Status.gui.Show(Format("x{} y{} w{} h{} NA", x, y, Status.w, Status.h))
-        ; Ελαφριά διαφάνεια
         WinSetTransparent(230, Status.gui.Hwnd)
     }
 
-    ; Ανανέωση κειμένου
     static Update(text) {
         if (Status.gui = "")
             Status.Show(text)
@@ -81,7 +75,6 @@ class Status {
             Status.txt.Value := text
     }
 
-    ; Κλείσιμο
     static Close() {
         if (Status.gui != "") {
             Status.gui.Destroy()
@@ -92,9 +85,9 @@ class Status {
 }
 
 ; ===== Hotkeys =====
-F9::Reload()  ; Restart script
+F9::Reload()
 F10::{
-    Suspend(-1)                              ; Pause/Resume
+    Suspend(-1)
     Status.Update(A_IsSuspended ? "⏸️ Παύση" : "▶️ Συνέχιση")
 }
 F12::{
@@ -102,9 +95,9 @@ F12::{
     ExitApp()
 }
 
-; ===== Προβολή status με την εκκίνηση =====
+; ===== Εκκίνηση =====
 Status.Show("Το script ξεκίνησε…")
-Main()  ; Εκκίνηση κύριας ροής
+Main()
 
 ; ==================== Ρουτίνες ====================
 Main() {
@@ -132,17 +125,23 @@ Main() {
         ; (Προαιρετικά) Shorts
         ; PlayPlaylist(URL_SHORTS, CNT_SHORTS, T_SHORT, false)
 
+        ; Ορθό κλείσιμο & αναμονή κλεισίματος πριν νέο κύκλο
         WinClose(EDGE_WIN)
-        Sleep(500)
+        if !WinWaitClose(EDGE_WIN, , 5) {
+            ; Αν δεν έκλεισε, προσπάθησε ξανά “μαλακά”
+            WinClose(EDGE_WIN)
+            WinWaitClose(EDGE_WIN, , 5)
+        }
         Status.Update("Κύκλος ολοκληρώθηκε. Νέος κύκλος σε 1 s…")
-        Sleep(500)
+        Sleep(1000)
     }
 }
 
 OpenEdge() {
-    global EDGE_WIN, EDGE_EXE, EDGE_PROFILE
+    global EDGE_WIN, EDGE_PROC, EDGE_EXE, EDGE_PROFILE
     Status.Update("Άνοιγμα/Ενεργοποίηση Edge…")
 
+    ; Αν υπάρχει ήδη παράθυρο Edge, ενεργοποίησέ το
     if WinExist(EDGE_WIN) {
         WinActivate(EDGE_WIN)
         if !WinWaitActive(EDGE_WIN, , 3)
@@ -153,10 +152,13 @@ OpenEdge() {
         return true
     }
 
-    Run('"' EDGE_EXE '" ' EDGE_PROFILE)
+    ; Αν δεν τρέχει διεργασία, άνοιξε τον Edge
+    if !ProcessExist(EDGE_PROC)
+        Run('"' EDGE_EXE '" ' EDGE_PROFILE)
+
+    ; Περίμενε να εμφανιστεί/ενεργοποιηθεί ΠΑΡΑΘΥΡΟ του Edge
     if !WinWait(EDGE_WIN, , 10)
         return false
-
     WinActivate(EDGE_WIN)
     if !WinWaitActive(EDGE_WIN, , 3)
         return false
@@ -169,15 +171,14 @@ OpenEdge() {
 
 GotoURL(url) {
     Status.Update("Μετάβαση σε URL…")
-    Send("^l")           ; Focus address bar
+    Send("^l")
     Sleep(150)
-    SendText(url)        ; Ασφαλής εγγραφή
+    SendText(url)
     Send("{Enter}")
-    Sleep(1200)          ; Αρχική αναμονή φόρτωσης
+    Sleep(1200)
 }
 
 WaitPlayable(timeoutSec := 10) {
-    ; Placeholder για UI detection (ImageSearch/PixelSearch) αν χρειαστεί
     loop timeoutSec
         Sleep(1000)
 }
@@ -210,7 +211,6 @@ PlayFixed(arr, perItemSec) {
 }
 
 TimerSleep(sec) {
-    ; Διακριτικός μετρητής. Αν θες ορατό countdown, μπορείς να καλείς Status.Update ανά 5 s.
     loop sec
         Sleep(1000)
 }
