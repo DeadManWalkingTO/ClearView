@@ -1,4 +1,4 @@
-﻿; ==================== main_v2_status_fixed_newtab.ahk (AHK v2) ====================
+﻿; ==================== main_v2_status_profile.ahk (AHK v2) ====================
 #Requires AutoHotkey v2.0
 #SingleInstance Force
 
@@ -6,14 +6,15 @@ SetTitleMatchMode(2)
 SetWorkingDir(A_ScriptDir)
 
 ; ===== Ρυθμίσεις / Σταθερές =====
-; Στόχευση παραθύρων/διεργασίας με το εκτελέσιμο (σταθερό σε όλες τις γλώσσες/τίτλους)
+; Στόχευση με εκτελέσιμο (σταθερό σε γλώσσες/τίτλους)
 EDGE_WIN     := "ahk_exe msedge.exe"
 EDGE_PROC    := "msedge.exe"
 
-; Προσαρμόστε αν χρειάζεται (x64 συνήθως: C:\Program Files\Microsoft\Edge\Application\msedge.exe)
+; Προσαρμόστε αν χρειάζεται (x64: C:\Program Files\Microsoft\Edge\Application\msedge.exe)
 EDGE_EXE     := "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
-; Προφίλ που ζήτησες
-EDGE_PROFILE := '--profile-directory="Chryseis"'
+
+; === Το εμφανιζόμενο όνομα προφίλ που ΘΕΛΟΥΜΕ (όπως φαίνεται στο Edge UI) ===
+EDGE_PROFILE_NAME := "Chryseis"
 
 ; Playlists
 URL_ALL      := "https://www.youtube.com/playlist?list=PL1TQ_pTmsiADD0QnjnvlfoRV3kDUaFtXc&playnext=1&autoplay=1"
@@ -43,7 +44,7 @@ CNT_GAMES := 62
 class Status {
     static gui := ""
     static txt := ""
-    static w := 380, h := 90
+    static w := 420, h := 90
     static margin := 12
 
     static Show(initialText := "Έναρξη…") {
@@ -51,15 +52,12 @@ class Status {
             Status.Update(initialText)
             return
         }
-        ; +E0x08000000: No-Activate (δεν παίρνει focus)
-        Status.gui := Gui("+AlwaysOnTop -Caption +ToolWindow +E0x08000000")
-        ; Αν θες click-through: πρόσθεσε +E0x20 στην παραπάνω γραμμή
+        Status.gui := Gui("+AlwaysOnTop -Caption +ToolWindow +E0x08000000") ; No-Activate
         Status.gui.BackColor := "0x101010"
-        f := Status.gui.Add("Text", "xm ym cWhite", initialText)
-        f.SetFont("s10", "Segoe UI")
-        Status.txt := f
+        t := Status.gui.Add("Text", "xm ym cWhite", initialText)
+        t.SetFont("s10", "Segoe UI")
+        Status.txt := t
 
-        ; Τοποθέτηση: επάνω-δεξιά της κύριας οθόνης
         left := top := right := bottom := 0
         MonitorGetWorkArea(1, &left, &top, &right, &bottom)
         x := right - Status.w - Status.margin
@@ -102,85 +100,135 @@ Main()
 
 ; ==================== Ρουτίνες ====================
 Main() {
+    global EDGE_PROFILE_NAME
+    ; 1) Επίλυση φακέλου προφίλ από εμφανιζόμενο όνομα (π.χ. Chryseis → Profile 3)
+    profDir := ResolveEdgeProfileDirByName(EDGE_PROFILE_NAME)
+    if (profDir = "") {
+        Status.Update("⚠️ Δεν βρέθηκε φάκελος για προφίλ: " EDGE_PROFILE_NAME ". Θα δοκιμάσω ως έχει…")
+        profArg := '--profile-directory="' EDGE_PROFILE_NAME '"'
+    } else {
+        profArg := '--profile-directory="' profDir '"'
+    }
+    ; Πάντα νέο παράθυρο αυτού του προφίλ (ανεξαρτήτως άλλων Edge)
+    profArg .= " --new-window"
+
     loop {
         Status.Update("Έναρξη κύκλου…")
-        if !OpenEdge() {
-            Status.Update("Αποτυχία ενεργοποίησης Edge. Επανάληψη σε 3 s…")
+        ; Άνοιξε νέο ΠΑΡΑΘΥΡΟ Edge στο σωστό προφίλ και πάρε τον νέο hWnd
+        hNew := OpenEdgeNewWindow(profArg)
+        if (!hNew) {
+            Status.Update("Αποτυχία ανοίγματος Edge. Επανάληψη σε 3 s…")
             Sleep(3000)
             continue
         }
+        WinActivate("ahk_id " hNew)
+        WinWaitActive("ahk_id " hNew, , 5)
+        WinMaximize("ahk_id " hNew)
+        Sleep(200)
+        Status.Update("Edge έτοιμος (" EDGE_PROFILE_NAME ").")
 
-        ; === ΝΕΟ: Αντί για 1η καρτέλα, άνοιξε ΝΕΑ καρτέλα πριν από κάθε ροή ===
+        ; === Κάθε ροή σε ΝΕΑ καρτέλα ===
+        NewTab(hNew), PlayPlaylist(URL_ALL,   CNT_ALL,   T_LONG, true)
+        NewTab(hNew), PlayFixed(FIXED,        T_SHORT)
+        NewTab(hNew), PlayPlaylist(URL_GAMES, CNT_GAMES, T_MED,  true)
+        ; Προαιρετικά:
+        ; NewTab(hNew), PlayPlaylist(URL_SHORTS, CNT_SHORTS, T_SHORT, false)
 
-        ; 1) Playlist ALL
-        NewTab()
-        PlayPlaylist(URL_ALL, CNT_ALL, T_LONG, true)
-
-        ; 2) Fixed videos
-        NewTab()
-        PlayFixed(FIXED, T_SHORT)
-
-        ; 3) Playlist GAMES
-        NewTab()
-        PlayPlaylist(URL_GAMES, CNT_GAMES, T_MED, true)
-
-        ; (Προαιρετικά) Shorts
-        ; NewTab()
-        ; PlayPlaylist(URL_SHORTS, CNT_SHORTS, T_SHORT, false)
-
-        ; Ορθό κλείσιμο & αναμονή κλεισίματος πριν νέο κύκλο
-        WinClose(EDGE_WIN)
-        if !WinWaitClose(EDGE_WIN, , 5) {
-            WinClose(EDGE_WIN)
-            WinWaitClose(EDGE_WIN, , 5)
-        }
+        ; Κλείσε ΜΟΝΟ το νέο παράθυρο (όχι όλο τον Edge)
+        WinClose("ahk_id " hNew)
+        WinWaitClose("ahk_id " hNew, , 5)
         Status.Update("Κύκλος ολοκληρώθηκε. Νέος κύκλος σε 1 s…")
         Sleep(1000)
     }
 }
 
-OpenEdge() {
-    global EDGE_WIN, EDGE_PROC, EDGE_EXE, EDGE_PROFILE
-    Status.Update("Άνοιγμα/Ενεργοποίηση Edge…")
+; --- Εντοπίζει τον φάκελο προφίλ με βάση το εμφανιζόμενο όνομα (π.χ. "Chryseis") ---
+ResolveEdgeProfileDirByName(displayName) {
+    base := A_LocalAppData "\Microsoft\Edge\User Data\"
+    if !DirExist(base)
+        return ""  ; απίθανο, αλλά έλεγχος
 
-    ; Αν υπάρχει ήδη παράθυρο Edge, ενεργοποίησέ το
-    if WinExist(EDGE_WIN) {
-        WinActivate(EDGE_WIN)
-        if !WinWaitActive(EDGE_WIN, , 3)
-            return false
-        WinMaximize(EDGE_WIN)
-        Sleep(200)
-        Status.Update("Edge έτοιμος.")
-        return true
+    ; Εξέτασε "Default" + "Profile *"
+    candidates := ["Default"]
+    ; Συλλογή Profile X
+    for d in DirGet(base, "D") {
+        ; μόνο "Profile " + αριθμός
+        if RegExMatch(d.Name, "^Profile\s+\d+$")
+            candidates.Push(d.Name)
     }
 
-    ; Αν δεν τρέχει διεργασία, άνοιξε τον Edge με το ζητούμενο προφίλ
-    if !ProcessExist(EDGE_PROC)
-        Run('"' EDGE_EXE '" ' EDGE_PROFILE)
-
-    ; Περίμενε να εμφανιστεί/ενεργοποιηθεί ΠΑΡΑΘΥΡΟ του Edge
-    if !WinWait(EDGE_WIN, , 10)
-        return false
-    WinActivate(EDGE_WIN)
-    if !WinWaitActive(EDGE_WIN, , 3)
-        return false
-
-    WinMaximize(EDGE_WIN)
-    Sleep(300)
-    Status.Update("Edge έτοιμος.")
-    return true
+    for _, cand in candidates {
+        pref := base cand "\Preferences"
+        if !FileExist(pref)
+            continue
+        txt := ""
+        try txt := FileRead(pref, "UTF-8")
+        catch
+            continue
+        ; Χονδρικό αλλά λειτουργικό: αναζήτηση "profile":{"name":"Chryseis"} ή έστω "name":"Chryseis"
+        if RegExMatch(txt, '"profile"\s*:\s*\{[^}]*"name"\s*:\s*"' . RegExEscape(displayName) . '"', &m)
+            return cand
+        ; fallback: ψάξε σκέτο "name":"Chryseis"
+        if RegExMatch(txt, '"name"\s*:\s*"' . RegExEscape(displayName) . '"')
+            return cand
+    }
+    return ""
 }
 
-; === Άνοιγμα νέας καρτέλας ===
-NewTab() {
+; --- Άνοιγμα ΝΕΟΥ παραθύρου Edge για δεδομένο προφίλ, επιστρέφει hWnd του ΝΕΟΥ παραθύρου ---
+OpenEdgeNewWindow(profileArg) {
+    global EDGE_EXE, EDGE_WIN
+    Status.Update("Άνοιγμα νέου παραθύρου Edge στο ζητούμενο προφίλ…")
+
+    ; Λίστα παραθύρων ΠΡΙΝ
+    before := WinGetList(EDGE_WIN)
+
+    ; Εκτέλεση (δεν μας νοιάζει αν τρέχει άλλος Edge – ανοίγουμε ΝΕΟ)
+    ; Επιστρέφει PID (ίσως του υπάρχοντος process). Δεν το εμπιστευόμαστε για targeting.
+    try Run('"' EDGE_EXE '" ' profileArg)  ; π.χ. --profile-directory="Profile 3" --new-window
+    catch {
+        return 0
+    }
+
+    ; Εντόπισε το ΝΕΟ παράθυρο ως διαφορά λίστας
+    tries := 40  ; ~10s
+    loop tries {
+        Sleep(250)
+        after := WinGetList(EDGE_WIN)
+        hNew := FindNewWindowHandle(before, after)
+        if (hNew) {
+            return hNew
+        }
+    }
+    return 0
+}
+
+; --- Βρίσκει ποιο hWnd εμφανίστηκε στη δεύτερη λίστα και δεν υπήρχε στην πρώτη ---
+FindNewWindowHandle(beforeArr, afterArr) {
+    ; Φτιάξε σύνολο των παλιών
+    seen := Map()
+    for _, h in beforeArr
+        seen[h] := true
+    ; Βρες νέο
+    for _, h in afterArr {
+        if !seen.Has(h)
+            return h
+    }
+    return 0
+}
+
+; === Άνοιγμα νέας καρτέλας στο ΣΥΓΚΕΚΡΙΜΕΝΟ παράθυρο ===
+NewTab(hWnd) {
     Status.Update("Άνοιγμα νέας καρτέλας…")
-    Send("^t")           ; Ctrl+T → New Tab
+    WinActivate("ahk_id " hWnd)
+    WinWaitActive("ahk_id " hWnd, , 3)
+    Send("^t")
     Sleep(250)
 }
 
 GotoURL(url) {
     Status.Update("Μετάβαση σε URL…")
-    Send("^l")           ; Focus address bar
+    Send("^l")
     Sleep(150)
     SendText(url)
     Send("{Enter}")
