@@ -1,4 +1,4 @@
-﻿; ==================== main_v2_status_fixed.ahk (AHK v2) ====================
+﻿; ==================== main_v2_status_fixed_newtab.ahk (AHK v2) ====================
 #Requires AutoHotkey v2.0
 #SingleInstance Force
 
@@ -6,13 +6,13 @@ SetTitleMatchMode(2)
 SetWorkingDir(A_ScriptDir)
 
 ; ===== Ρυθμίσεις / Σταθερές =====
-; Στόχευση παραθύρων/διεργασίας ΜΕ ΤΟ ΕΚΤΕΛΕΣΙΜΟ (σταθερό σε όλες τις γλώσσες/τίτλους)
+; Στόχευση παραθύρων/διεργασίας με το εκτελέσιμο (σταθερό σε όλες τις γλώσσες/τίτλους)
 EDGE_WIN     := "ahk_exe msedge.exe"
 EDGE_PROC    := "msedge.exe"
 
 ; Προσαρμόστε αν χρειάζεται (x64 συνήθως: C:\Program Files\Microsoft\Edge\Application\msedge.exe)
 EDGE_EXE     := "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
-; === Εδώ αλλάξαμε το προφίλ ===
+; Προφίλ που ζήτησες
 EDGE_PROFILE := '--profile-directory="Chryseis"'
 
 ; Playlists
@@ -110,26 +110,27 @@ Main() {
             continue
         }
 
-        ; Καθαρή κατάσταση καρτελών
-        Send("^1")
-        Sleep(300)
+        ; === ΝΕΟ: Αντί για 1η καρτέλα, άνοιξε ΝΕΑ καρτέλα πριν από κάθε ροή ===
 
         ; 1) Playlist ALL
+        NewTab()
         PlayPlaylist(URL_ALL, CNT_ALL, T_LONG, true)
 
         ; 2) Fixed videos
+        NewTab()
         PlayFixed(FIXED, T_SHORT)
 
         ; 3) Playlist GAMES
+        NewTab()
         PlayPlaylist(URL_GAMES, CNT_GAMES, T_MED, true)
 
         ; (Προαιρετικά) Shorts
+        ; NewTab()
         ; PlayPlaylist(URL_SHORTS, CNT_SHORTS, T_SHORT, false)
 
         ; Ορθό κλείσιμο & αναμονή κλεισίματος πριν νέο κύκλο
         WinClose(EDGE_WIN)
         if !WinWaitClose(EDGE_WIN, , 5) {
-            ; Αν δεν έκλεισε, προσπάθησε ξανά “μαλακά”
             WinClose(EDGE_WIN)
             WinWaitClose(EDGE_WIN, , 5)
         }
@@ -170,9 +171,16 @@ OpenEdge() {
     return true
 }
 
+; === Άνοιγμα νέας καρτέλας ===
+NewTab() {
+    Status.Update("Άνοιγμα νέας καρτέλας…")
+    Send("^t")           ; Ctrl+T → New Tab
+    Sleep(250)
+}
+
 GotoURL(url) {
     Status.Update("Μετάβαση σε URL…")
-    Send("^l")
+    Send("^l")           ; Focus address bar
     Sleep(150)
     SendText(url)
     Send("{Enter}")
