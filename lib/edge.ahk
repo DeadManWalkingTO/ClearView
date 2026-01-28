@@ -100,10 +100,14 @@ class EdgeService {
         if (cmd = "")
             return ""
 
+        ; Quoted: --profile-directory="Profile N" | "Default"
         if RegExMatch(cmd, "--profile-directory=`"([^`"]+)`"", &m)
             return m[1]
+
+        ; Unquoted: --profile-directory=ProfileN | Default
         if RegExMatch(cmd, "--profile-directory=([^\s]+)", &m)
             return m[1]
+
         return ""
     }
 
@@ -117,26 +121,49 @@ class EdgeService {
         this.StepDelay()
     }
 
+    ; --- ΝΕΟ: Πολυπέρασμα κλεισίματος windows του ίδιου προφίλ (με fallback) ---
     CloseOtherWindowsOfProfile(profileDir, hKeep) {
-        all := WinGetList(this.sel)
-        for _, h in all {
-            if (h = hKeep)
-                continue
-            pd := this.GetWindowProfileDir(h)
-            if (pd = "")
-                continue
-            if (pd = profileDir) {
-                WinClose("ahk_id " h)
-                WinWaitClose("ahk_id " h, , 3)
-                if WinExist("ahk_id " h) {
-                    WinActivate("ahk_id " h)
-                    WinWaitActive("ahk_id " h, , 2)
-                    Send("^+w")
-                    Sleep(120)
-                    WinWaitClose("ahk_id " h, , 2)
+        ; Μέχρι 3 περάσματα για ανθεκτικότητα (modal prompts, slow-close)
+        passes := 3
+        loop passes {
+            closedOne := false
+            all := WinGetList(this.sel)
+
+            for _, h in all {
+                if (h = hKeep)
+                    continue
+
+                pd := this.GetWindowProfileDir(h)
+                ; Η βασική σύγκριση: ίδιο profileDir
+                same := (pd != "" && pd = profileDir)
+
+                ; Fallback: όταν ΔΕΝ αναγνωρίζεται προφίλ από WMI/CommandLine
+                ; και έχει ενεργοποιηθεί η ρύθμιση CLOSE_WINDOWS_WHEN_PROFILE_UNKNOWN
+                if (!same && pd = "" && Settings.CLOSE_WINDOWS_WHEN_PROFILE_UNKNOWN) {
+                    ; Επιθετικό κλείσιμο: θεωρούμε ότι ανήκει στο ίδιο user data και το κλείνουμε.
+                    same := true
                 }
-                this.StepDelay()
+
+                if (same) {
+                    ; Ευγενικό κλείσιμο παραθύρου (κλείνουν όλες οι καρτέλες του)
+                    WinClose("ahk_id " h)
+                    WinWaitClose("ahk_id " h, , 3)
+                    if WinExist("ahk_id " h) {
+                        ; Fallback: Ctrl+Shift+W
+                        WinActivate("ahk_id " h)
+                        WinWaitActive("ahk_id " h, , 2)
+                        Send("^+w")
+                        Sleep(150)
+                        WinWaitClose("ahk_id " h, , 3)
+                    }
+                    this.StepDelay()
+                    closedOne := true
+                }
             }
+
+            ; Αν δεν έκλεισε τίποτα σε αυτό το πέρασμα, σταματάμε.
+            if (!closedOne)
+                break
         }
     }
 
@@ -153,18 +180,15 @@ class EdgeService {
         this.StepDelay()
     }
 
-    ; ------ ΝΕΕΣ ΜΕΘΟΔΟΙ: Focus & Play στο YouTube ------
-    ; Εστίαση στο περιεχόμενο της σελίδας (Edge: Ctrl+F6 = move focus στο page pane)
-    ; Βλ. τεκμηρίωση Edge shortcuts. [1](https://tkcomputerservice.com/edge-keyboard-shortcuts.htm)
+    ; ------ Focus & Play στο YouTube ------
     FocusPage(hWnd) {
         WinActivate("ahk_id " hWnd)
         WinWaitActive("ahk_id " hWnd, , 3)
-        Send("^{F6}")    ; Ctrl+F6 → pane: page content
+        Send("^{F6}")    ; pane: page content (Edge)
         Sleep(120)
         this.StepDelay()
     }
 
-    ; Αναμονή (best-effort) μέχρι ο τίτλος να περιέχει "YouTube".
     WaitForYouTubeTitle(hWnd, timeoutMs := 6000) {
         tries := Ceil(timeoutMs / 250.0)
         loop tries {
@@ -176,27 +200,21 @@ class EdgeService {
         return false
     }
 
-    ; Πάτημα Play στο YouTube:
-    ; 1) Focus στη σελίδα (Ctrl+F6) + PRE-CLICK στον player (για να μην γραφτεί το 'k' στην address bar)
-    ; 2) Μετά στέλνουμε 'k' (επίσημο Play/Pause του YouTube). [2](https://vind-works.io/resources/youtube-keyboard-shortcuts)
-    ; 3) Προαιρετικά δεύτερο 'k' αν θες «double assurance».
     PlayYouTube(hWnd, doSecondK := false) {
         this.WaitForYouTubeTitle(hWnd)   ; best-effort
-        ; 1) Focus σε page + click στον player
         this.FocusPage(hWnd)
+
+        ; PRE-CLICK στο κέντρο του player
         CoordMode("Mouse", "Window")
         WinGetPos(, , &W, &H, "ahk_id " hWnd)
-        x := Floor(W / 2)
-        y := Floor(H * 0.45)
+        x := Floor(W / 2), y := Floor(H * 0.45)
         Click(x, y)
         Sleep(150)
 
-        ; 2) 'k' (τώρα με page focus → δεν μένει στη γραμμή διεύθυνσης)
-        Send("k")
+        Send("k")     ; YouTube Play/Pause
         Sleep(250)
         this.StepDelay()
 
-        ; 3) (προαιρετικό) δεύτερο 'k'
         if (doSecondK) {
             Send("k")
             Sleep(200)
@@ -217,7 +235,6 @@ class EdgeService {
 
     _dirExist(path) => InStr(FileExist(path), "D") > 0
 
-    ; ---- ΝΕΟ: Κεντρική καθυστέρηση βήματος ----
     StepDelay() {
         Sleep(Settings.EDGE_STEP_DELAY_MS)
     }

@@ -1,26 +1,22 @@
 ﻿; ==================== lib/settings.ahk ====================
 #Requires AutoHotkey v2.0
-; Single Source of Truth (SSOT):
-; Όλες οι ρυθμίσεις/σταθερές της εφαρμογής δηλώνονται εδώ.
 class Settings {
     ; ------- Μεταδεδομένα / Εφαρμογή -------
     static APP_TITLE := "BH Automation — Edge/Chryseis"
-    static APP_VERSION := "v2.8.2" ; αλλάζεις εδώ την έκδοση
+    static APP_VERSION := "v2.8.2"
 
     ; ------- Συμπεριφορά UI / Popups -------
-    static POPUP_T := 3                ; διάρκεια ενημερωτικών πλαισίων (δευτ.)
-    static KEEP_EDGE_OPEN := true      ; να παραμένει ανοιχτό το νέο παράθυρο Edge
-    static ICON_NEUTRAL := "🔵"        ; συμβατότητα
+    static POPUP_T := 3
+    static KEEP_EDGE_OPEN := true
+    static ICON_NEUTRAL := "🔵"
 
     ; ------- Edge / Επιλογές εκτέλεσης -------
-    static EDGE_WIN_SEL := "ahk_exe msedge.exe"  ; selector για WinGetList/Activate
+    static EDGE_WIN_SEL := "ahk_exe msedge.exe"
     static EDGE_EXE := "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
-    static EDGE_PROFILE_NAME := "Chryseis"       ; εμφανιζόμενο όνομα προφίλ
-    static PROFILE_DIR_FORCE := ""               ; π.χ. "Profile 3" για bypass
+    static EDGE_PROFILE_NAME := "Chryseis"
+    static PROFILE_DIR_FORCE := ""
 
     ; ------- Χρονισμοί / Καθυστερήσεις -------
-    ; ΝΕΟ: Καθυστέρηση (ms) μεταξύ των διαδοχικών ενεργειών στον Edge
-    ; Πρότεινες 1–2s. Θέτω προεπιλογή 1500ms για ασφάλεια.
     static EDGE_STEP_DELAY_MS := 1500
 
     ; ------- Paths δεδομένων -------
@@ -29,5 +25,9 @@ class Settings {
 
     ; ------- Πιθανότητα επιλογής list1 (0–100) -------
     static LIST1_PROB_PCT := 50
+
+    ; ------- ΝΕΟ: Κλείσιμο windows με "άγνωστο" προφίλ (WMI/CommandLine κενό) -------
+    ; Ενεργό μόνο όταν έχουμε βρει σωστό προφίλ για το νέο παράθυρο.
+    static CLOSE_WINDOWS_WHEN_PROFILE_UNKNOWN := true
 }
 ; ==================== End Of File ====================
