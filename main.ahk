@@ -7,7 +7,7 @@ SetWorkingDir(A_ScriptDir)
 
 ; ===== Μεταδεδομένα εφαρμογής =====
 APP_TITLE   := "BH Automation — Edge/Chryseis"
-APP_VERSION := "v1.0.6"          ; bump: καλύτερος profile resolver + επιλογή KEEP_EDGE_OPEN
+APP_VERSION := "v1.0.7"          ; bump: fix catch blocks + robust Local State reading
 
 ; ===== Ρυθμίσεις / Επιλογές =====
 EDGE_WIN     := "ahk_exe msedge.exe"
@@ -265,22 +265,24 @@ ResolveEdgeProfileDirByName(displayName) {
     localState := base "Local State"
     if FileExist(localState) {
         txt := ""
-        try txt := FileRead(localState, "UTF-8")
-        catch txt := ""
-        ; Αναζήτηση στο info_cache: "Profile 3":{"name":"Chryseis", ...}
-        ; και "Default":{"name":"<name>"}
-        pat := '"profile"\s*:\s*\{\s*"info_cache"\s*:\s*\{([\s\S]*?)\}\s*\}'
-        if RegExMatch(txt, pat, &m) {
-            cache := m[1]
-            ; Βρες εγγραφές τύπου "Profile X":{"name":"..."} ή "Default":{"name":"..."}
-            ; Θα κάνουμε loop με global regex για όλα τα ζεύγη "dir":{"name":"..."}
-            pos := 1
-            While RegExMatch(cache, '"([^"]+)"\s*:\s*\{[^}]*"name"\s*:\s*"([^"]+)"', &mm, pos) {
-                dir := mm[1], nm := mm[2]
-                ; Συμφωνία ονόματος;
-                if (nm = displayName)
-                    return dir
-                pos := mm.Pos(0) + mm.Len(0)
+        try {
+            txt := FileRead(localState, "UTF-8")
+        } catch as e {
+            txt := ""
+        }
+        if (txt != "") {
+            ; pattern για να απομονώσουμε το μπλοκ info_cache
+            pat := '"profile"\s*:\s*\{\s*"info_cache"\s*:\s*\{([\s\S]*?)\}\s*\}'
+            if RegExMatch(txt, pat, &m) {
+                cache := m[1]
+                ; Βρες εγγραφές "dir":{"name":"..."}
+                pos := 1
+                while RegExMatch(cache, '"([^"]+)"\s*:\s*\{[^}]*"name"\s*:\s*"([^"]+)"', &mm, pos) {
+                    dir := mm[1], nm := mm[2]
+                    if (nm = displayName)
+                        return dir
+                    pos := mm.Pos(0) + mm.Len(0)
+                }
             }
         }
     }
@@ -296,14 +298,17 @@ ResolveEdgeProfileDirByName(displayName) {
         pref := base cand "\Preferences"
         if !FileExist(pref)
             continue
-        txt := ""
-        try txt := FileRead(pref, "UTF-8")
-        catch txt := ""
-        if (txt = "")
+        txt2 := ""
+        try {
+            txt2 := FileRead(pref, "UTF-8")
+        } catch as e {
+            txt2 := ""
+        }
+        if (txt2 = "")
             continue
-        if RegExMatch(txt, '"profile"\s*:\s*\{[^}]*"name"\s*:\s*"' esc '"')
+        if RegExMatch(txt2, '"profile"\s*:\s*\{[^}]*"name"\s*:\s*"' esc '"')
             return cand
-        if RegExMatch(txt, '"name"\s*:\s*"' esc '"')
+        if RegExMatch(txt2, '"name"\s*:\s*"' esc '"')
             return cand
     }
     return ""
@@ -313,8 +318,9 @@ ResolveEdgeProfileDirByName(displayName) {
 OpenEdgeNewWindow(profileArg) {
     global EDGE_EXE, EDGE_WIN
     before := WinGetList(EDGE_WIN)
-    try Run('"' EDGE_EXE '" ' profileArg)
-    catch {
+    try {
+        Run('"' EDGE_EXE '" ' profileArg)
+    } catch as e {
         return 0
     }
     tries := 40  ; ~10s
