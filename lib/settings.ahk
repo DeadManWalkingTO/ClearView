@@ -34,8 +34,8 @@ class Settings {
   static LOOP_MAX_MINUTES := 10
 
   ; --- Continuous loop (σε milliseconds, για ακριβή logs) ---
-  static LOOP_MIN_MS := 1 * 60 * 1000
-  static LOOP_MAX_MS := 2 * 60 * 1000
+  static LOOP_MIN_MS := 2 * 60 * 1000
+  static LOOP_MAX_MS := 9 * 60 * 1000
 
   ; --- ΝΕΟ: απλοποιημένο Play ρυθμίσεις ---
   ; Αν true, πριν το click γίνεται 1× Ctrl+F6 για ελαφρύ focus στο web content.
