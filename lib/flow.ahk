@@ -10,10 +10,20 @@ class FlowController {
         this._running := false
         this._paused := false
         this._stopRequested := false
+        ; Πίνακες λιστών IDs (φορτώνονται από LoadIdLists)
+        this.list1 := []
+        this.list2 := []
     }
 
     ; ---- Public API ----
     IsRunning() => this._running
+
+    ; Φόρτωση IDs από τα αρχεία (καλείται στην εκκίνηση από main.ahk)
+    LoadIdLists() {
+        this.list1 := this._readIdsFromFile(Settings.DATA_LIST_TXT)
+        this.list2 := this._readIdsFromFile(Settings.DATA_RANDOM_TXT)
+        this.log.Write("📥 Φόρτωση λιστών: list1=" this.list1.Length ", list2=" this.list2.Length)
+    }
 
     StartRun() {
         if this._running
@@ -59,7 +69,7 @@ class FlowController {
         this._checkAbortOrPause()
         this.log.SetHeadline("🔎 Εύρεση Φακέλου Προφίλ…"), this.log.Write("🔎 Εύρεση Φακέλου Προφίλ Με Βάση Το Όνομα: " Settings.EDGE_PROFILE_NAME)
         profDir := this.edge.ResolveProfileDirByName(Settings.EDGE_PROFILE_NAME)
-        profileFound := (profDir != "")  ; ΝΕΟ: Σήμανση αν όντως βρέθηκε προφίλ
+        profileFound := (profDir != "")  ; σήμανση: βρέθηκε συγκεκριμένος φάκελος;
 
         if (profDir = "") {
             this.log.SetHeadline("⚠️ Δεν Βρέθηκε Φάκελος Για: " Settings.EDGE_PROFILE_NAME)
@@ -91,19 +101,20 @@ class FlowController {
         readyMsg := Format('Edge έτοιμο για χρήση ("{ }").', Settings.EDGE_PROFILE_NAME)
         this.log.ShowTimed("EdgeReady", readyMsg, "BH Automation — Edge", "Iconi")
 
-        ; 3) Κύρια λογική (νέα καρτέλα)
+        ; 3) Νέα καρτέλα
         this.edge.NewTab(hNew)
-        this.log.SetHeadline("➡️ Νέα Καρτέλα Ανοιχτή — Καμία Άλλη Ενέργεια."), this.log.Write("➡️ Νέα Καρτέλα (Κενή)")
+        this.log.SetHeadline("➡️ Νέα Καρτέλα Ανοιχτή — Φόρτωση ID"), this.log.Write("➡️ Νέα Καρτέλα (Κενή)")
 
-        ; 3.1) ΝΕΑ ΛΟΓΙΚΗ ΓΙΑ ΚΑΡΤΕΛΕΣ/ΠΑΡΑΘΥΡΑ ΙΔΙΟΥ ΠΡΟΦΙΛ
+        ; 3.1) Επιλογή λίστας με πιθανότητα & τυχαίο id, πλοήγηση
+        this._navigateWithRandomId(hNew)
+
+        ; 3.2) Λογική tabs: ΜΟΝΟ όταν έχουμε το σωστό προφίλ (βρέθηκε φάκελος)
         if (profileFound) {
             this.log.Write("🧹 Βρέθηκε προφίλ — κρατώ τη νέα καρτέλα στο νέο παράθυρο & κλείνω όλες τις καρτέλες των άλλων παραθύρων του ίδιου προφίλ.")
-            ; i) Κλείσε την «άλλη» καρτέλα στο νέο παράθυρο (κρατά τη νέα)
             this.edge.CloseOtherTabsInNewWindow(hNew)
-            ; ii) Κλείσε όλα τα άλλα παράθυρα του ίδιου profDir (άρα όλες οι καρτέλες τους)
             this.edge.CloseOtherWindowsOfProfile(profDir, hNew)
         } else {
-            this.log.Write("ℹ️ Δεν βρέθηκε προφίλ — ΔΕΝ κλείνω άλλες καρτέλες/παράθυρα.")
+            this.log.Write("ℹ️ Δεν βρέθηκε φάκελος — ΔΕΝ κλείνω άλλες καρτέλες/παράθυρα.")
         }
 
         ; 4) Κλείσιμο/Παραμονή παραθύρου
@@ -115,6 +126,56 @@ class FlowController {
             this.log.SetHeadline("✨ Κύκλος Ολοκληρώθηκε (Edge Παραμένει Ανοιχτός).")
             this.log.Write("✨ Ολοκλήρωση Κύκλου (Παραμονή Παραθύρου)")
         }
+    }
+
+    ; ---- Internals ----
+    _readIdsFromFile(path) {
+        arr := []
+        try {
+            txt := FileRead(path, "UTF-8")
+            ; Normalize CRLF/CR/LF -> LF
+            txt := StrReplace(txt, "`r")
+            for line in StrSplit(txt, "`n") {
+                id := Trim(line)
+                if (id != "")
+                    arr.Push(id)
+            }
+        } catch as e {
+            this.log.Write("❌ Σφάλμα ανάγνωσης " path ": " e.Message)
+        }
+        return arr
+    }
+
+    _navigateWithRandomId(hWnd) {
+        ; Επιλογή λίστας με πιθανότητα LIST1_PROB_PCT (0–100)
+        prob := Settings.LIST1_PROB_PCT
+        r := Random(0, 100)
+        useList1 := (r < prob)
+
+        sel := (useList1 ? this.list1 : this.list2)
+        if (sel.Length = 0) {
+            ; Αν η επιλεγμένη λίστα είναι κενή, δοκίμασε την άλλη
+            sel := (useList1 ? this.list2 : this.list1)
+        }
+        if (sel.Length = 0) {
+            this.log.Write("⚠️ Καμία λίστα διαθέσιμη (list1/list2 κενές) — παραμένω στην κενή καρτέλα.")
+            return
+        }
+
+        idx := Random(1, sel.Length)  ; integer index
+        pick := sel[idx]
+        url := "https://www.youtube.com/watch?v=" pick
+
+        this.log.Write(Format("🎲 Επιλέχθηκε λίστα: { } (rand={ }, prob={ }%), id={ }"
+            , (useList1 ? "list1" : "list2"), r, prob, pick))
+
+        ; Πλοήγηση
+        this.edge.NavigateToUrl(hWnd, url)
+        this.log.Write("🌐 Πλοήγηση σε: " url)
+
+        ; --- ΝΕΟ: Focus & Play στο YouTube (k), με fallback click ---
+        this.edge.PlayYouTube(hWnd)
+        this.log.Write("▶️ Αποστολή εντολής Play (k) με fallback")
     }
 
     _checkAbortOrPause() {
