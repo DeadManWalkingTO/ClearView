@@ -119,7 +119,7 @@ class Status {
         ; Buffer για UI (throttle)
         Status._buf.Push(1)
         if !Status._timerOn {
-            ; *** FIX: δίνουμε valid callback ως lambda ***
+            ; FIX: έγκυρο callback (lambda)
             SetTimer(() => Status._FlushUI(), -250)
             Status._timerOn := true
         }
@@ -174,7 +174,7 @@ class Status {
             return
         if (Status._buf.Length) {
             Status._buf := []
-            Status.txtLog.Value := Status._log.Join("`r`n")
+            Status.txtLog.Value := JoinLines(Status._log, "`r`n")
             ; Scroll-to-bottom με μηνύματα (χωρίς focus)
             hwnd := Status.txtLog.Hwnd
             ; EM_SETSEL (0xB1) με -1,-1 -> caret στο τέλος
@@ -214,7 +214,7 @@ F12::{
         DirCreate("logs")
     fn := Format("logs\status_{:04}{:02}{:02}_{:02}{:02}{:02}.txt"
         , A_YYYY, A_MM, A_DD, A_Hour, A_Min, A_Sec)
-    FileAppend(Status._log.Join("`r`n"), fn, "UTF-8")
+    FileAppend(JoinLines(Status._log, "`r`n"), fn, "UTF-8")
     Status.Set("Log saved → " fn), Status.Log("Log saved → " fn)
 }
 
@@ -410,5 +410,16 @@ DirExist_(path) {
 RegexEscape(str) {
     ; Escape των regex metacharacters
     return RegExReplace(str, "([\\.^$*+?()\\[\\]{}|])", "\\$1")
+}
+
+JoinLines(arr, sep := "`r`n") {
+    ; Επιστρέφει ενιαίο string από array στοιχείων με διαχωριστικό `sep`
+    out := ""
+    for i, v in arr {
+        if (i > 1)
+            out .= sep
+        out .= v
+    }
+    return out
 }
 ; ==================== End Of File ====================
