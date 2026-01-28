@@ -174,7 +174,7 @@ class EdgeService {
     try {
       if (logger) {
         try {
-          logger.Write("🎯 SimplePlay: WinActivate → Maximize → (optional focus) → CenterClick → 'k'")
+          logger.Write("🎯 SimplePlay: WinActivate → Maximize → (optional focus) → CenterClick → (optional 'k')")
         } catch Error as _eLog0 {
           ; no-op
         }
@@ -231,8 +231,10 @@ class EdgeService {
       Sleep(150)
 
       ; 4) 'k' για Play/Pause
-      Send("k")
-      Sleep(200)
+      if (Settings.SEND_K_KEY) {
+        Send("k")
+        Sleep(200)
+      }
 
       if (logger) {
         try {

@@ -4,7 +4,7 @@
 class Settings {
   ; --- Μεταδεδομένα / Εφαρμογή ---
   static APP_TITLE := "BH Automation — Edge/Chryseis"
-  static APP_VERSION := "v3.2.2"
+  static APP_VERSION := "v3.5.5"
 
   ; --- UI / Popups ---
   static POPUP_T := 3
@@ -43,6 +43,9 @@ class Settings {
 
   ; (Προαιρετικά) Αν true, πριν το click γίνεται και Home (επιστροφή κορυφής).
   static SIMPLE_PLAY_HOME := false
+
+  ; (Προαιρετικά) Αν true, δίνεται και k για την αναπαραγωγή.
+  static SEND_K_KEY := false
 
   ; (Προαιρετικά) Συντελεστής ύψους για το click (0..1), default στο κέντρο 0.50.
   static SIMPLE_PLAY_Y_FACTOR := 0.50
