@@ -27,7 +27,6 @@ class EdgeService {
             } catch Error as e {
                 txt := ""
             }
-
             dirFromLocal := RegexLib.FindProfileDirInLocalState(txt, displayName)
             if (dirFromLocal != "")
                 return dirFromLocal
@@ -44,17 +43,14 @@ class EdgeService {
             pref := base cand "\Preferences"
             if !FileExist(pref)
                 continue
-
             txt2 := ""
             try {
                 txt2 := FileRead(pref, "UTF-8")
             } catch as e {
                 txt2 := ""
             }
-
             if (txt2 = "")
                 continue
-
             if RegexLib.PreferencesContainsProfileName(txt2, displayName)
                 return cand
         }
@@ -158,16 +154,17 @@ class EdgeService {
     }
 
     ; ------ ΝΕΕΣ ΜΕΘΟΔΟΙ: Focus & Play στο YouTube ------
+    ; Εστίαση στο περιεχόμενο της σελίδας (Edge: Ctrl+F6 = move focus στο page pane)
+    ; Βλ. τεκμηρίωση Edge shortcuts. [1](https://tkcomputerservice.com/edge-keyboard-shortcuts.htm)
     FocusPage(hWnd) {
         WinActivate("ahk_id " hWnd)
         WinWaitActive("ahk_id " hWnd, , 3)
-        Send("{F6}")
+        Send("^{F6}")    ; Ctrl+F6 → pane: page content
         Sleep(120)
-        Send("{F6}")
-        Sleep(80)
         this.StepDelay()
     }
 
+    ; Αναμονή (best-effort) μέχρι ο τίτλος να περιέχει "YouTube".
     WaitForYouTubeTitle(hWnd, timeoutMs := 6000) {
         tries := Ceil(timeoutMs / 250.0)
         loop tries {
@@ -179,20 +176,28 @@ class EdgeService {
         return false
     }
 
-    PlayYouTube(hWnd, doClickFallback := true) {
+    ; Πάτημα Play στο YouTube:
+    ; 1) Focus στη σελίδα (Ctrl+F6) + PRE-CLICK στον player (για να μην γραφτεί το 'k' στην address bar)
+    ; 2) Μετά στέλνουμε 'k' (επίσημο Play/Pause του YouTube). [2](https://vind-works.io/resources/youtube-keyboard-shortcuts)
+    ; 3) Προαιρετικά δεύτερο 'k' αν θες «double assurance».
+    PlayYouTube(hWnd, doSecondK := false) {
         this.WaitForYouTubeTitle(hWnd)   ; best-effort
+        ; 1) Focus σε page + click στον player
         this.FocusPage(hWnd)
+        CoordMode("Mouse", "Window")
+        WinGetPos(, , &W, &H, "ahk_id " hWnd)
+        x := Floor(W / 2)
+        y := Floor(H * 0.45)
+        Click(x, y)
+        Sleep(150)
+
+        ; 2) 'k' (τώρα με page focus → δεν μένει στη γραμμή διεύθυνσης)
         Send("k")
-        Sleep(350)
+        Sleep(250)
         this.StepDelay()
 
-        if (doClickFallback) {
-            CoordMode("Mouse", "Window")
-            WinGetPos(, , &W, &H, "ahk_id " hWnd)
-            x := Floor(W / 2)
-            y := Floor(H * 0.45)
-            Click(x, y)
-            Sleep(150)
+        ; 3) (προαιρετικό) δεύτερο 'k'
+        if (doSecondK) {
             Send("k")
             Sleep(200)
             this.StepDelay()

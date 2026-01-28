@@ -111,9 +111,7 @@ class FlowController {
         ; 3.1) ΠΡΩΤΑ: Κλείσιμο καρτελών/παραθύρων του ίδιου προφίλ (αν βρέθηκε)
         if (profileFound) {
             this.log.Write("🧹 Προκαταρκτικός καθαρισμός: κλείνω την «άλλη» καρτέλα στο νέο παράθυρο και όλα τα άλλα παράθυρα του ίδιου προφίλ.")
-            ; i) Κλείσε την «άλλη» καρτέλα στο νέο παράθυρο (κρατά τη νέα)
             this.edge.CloseOtherTabsInNewWindow(hNew)
-            ; ii) Κλείσε όλα τα άλλα παράθυρα του ίδιου profDir (άρα όλες οι καρτέλες τους)
             this.edge.CloseOtherWindowsOfProfile(profDir, hNew)
         } else {
             this.log.Write("ℹ️ Δεν βρέθηκε φάκελος — παραλείπω προκαταρκτικό κλείσιμο καρτελών/παραθύρων.")
@@ -178,9 +176,9 @@ class FlowController {
         this.edge.NavigateToUrl(hWnd, url)
         this.log.Write("🌐 Πλοήγηση σε: " url)
 
-        ; Focus & Play με fallback
+        ; Focus & Play με PRE-CLICK (βλ. edge.PlayYouTube)
         this.edge.PlayYouTube(hWnd)
-        this.log.Write("▶️ Αποστολή εντολής Play (k) με fallback")
+        this.log.Write("▶️ Αποστολή εντολής Play (k) με pre-click")
     }
 
     _checkAbortOrPause() {
