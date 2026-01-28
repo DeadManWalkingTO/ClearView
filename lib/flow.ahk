@@ -10,7 +10,6 @@ class FlowController {
         this._running := false
         this._paused := false
         this._stopRequested := false
-        ; Πίνακες λιστών IDs (φορτώνονται από LoadIdLists)
         this.list1 := []
         this.list2 := []
     }
@@ -18,7 +17,6 @@ class FlowController {
     ; ---- Public API ----
     IsRunning() => this._running
 
-    ; Φόρτωση IDs από τα αρχεία (καλείται στην εκκίνηση από main.ahk)
     LoadIdLists() {
         this.list1 := this._readIdsFromFile(Settings.DATA_LIST_TXT)
         this.list2 := this._readIdsFromFile(Settings.DATA_RANDOM_TXT)
@@ -69,7 +67,7 @@ class FlowController {
         this._checkAbortOrPause()
         this.log.SetHeadline("🔎 Εύρεση Φακέλου Προφίλ…"), this.log.Write("🔎 Εύρεση Φακέλου Προφίλ Με Βάση Το Όνομα: " Settings.EDGE_PROFILE_NAME)
         profDir := this.edge.ResolveProfileDirByName(Settings.EDGE_PROFILE_NAME)
-        profileFound := (profDir != "")  ; σήμανση: βρέθηκε συγκεκριμένος φάκελος;
+        profileFound := (profDir != "")
 
         if (profDir = "") {
             this.log.SetHeadline("⚠️ Δεν Βρέθηκε Φάκελος Για: " Settings.EDGE_PROFILE_NAME)
@@ -82,6 +80,7 @@ class FlowController {
             profArg := '--profile-directory="' profDir '"'
         }
         profArg .= " --new-window"
+        this.edge.StepDelay()
 
         ; 2) Άνοιγμα νέου παραθύρου Edge
         this._checkAbortOrPause()
@@ -95,20 +94,22 @@ class FlowController {
         WinWaitActive("ahk_id " hNew, , 5)
         WinMaximize("ahk_id " hNew)
         Sleep(200)
+        this.edge.StepDelay()
         this.log.SetHeadline("✅ Edge Έτοιμο (" Settings.EDGE_PROFILE_NAME ")"), this.log.Write("✅ Edge Ready")
 
         ; Popup (T=3s)
         readyMsg := Format('Edge έτοιμο για χρήση ("{ }").', Settings.EDGE_PROFILE_NAME)
         this.log.ShowTimed("EdgeReady", readyMsg, "BH Automation — Edge", "Iconi")
+        this.edge.StepDelay()
 
         ; 3) Νέα καρτέλα
         this.edge.NewTab(hNew)
         this.log.SetHeadline("➡️ Νέα Καρτέλα Ανοιχτή — Φόρτωση ID"), this.log.Write("➡️ Νέα Καρτέλα (Κενή)")
 
-        ; 3.1) Επιλογή λίστας με πιθανότητα & τυχαίο id, πλοήγηση
+        ; 3.1) Επιλογή λίστας με πιθανότητα & τυχαίο id, πλοήγηση + play
         this._navigateWithRandomId(hNew)
 
-        ; 3.2) Λογική tabs: ΜΟΝΟ όταν έχουμε το σωστό προφίλ (βρέθηκε φάκελος)
+        ; 3.2) Λογική tabs για σωστό προφίλ
         if (profileFound) {
             this.log.Write("🧹 Βρέθηκε προφίλ — κρατώ τη νέα καρτέλα στο νέο παράθυρο & κλείνω όλες τις καρτέλες των άλλων παραθύρων του ίδιου προφίλ.")
             this.edge.CloseOtherTabsInNewWindow(hNew)
@@ -121,6 +122,7 @@ class FlowController {
         if (!Settings.KEEP_EDGE_OPEN) {
             WinClose("ahk_id " hNew)
             WinWaitClose("ahk_id " hNew, , 5)
+            this.edge.StepDelay()
             this.log.SetHeadline("✨ Κύκλος Ολοκληρώθηκε."), this.log.Write("✨ Ολοκλήρωση Κύκλου")
         } else {
             this.log.SetHeadline("✨ Κύκλος Ολοκληρώθηκε (Edge Παραμένει Ανοιχτός).")
@@ -133,7 +135,6 @@ class FlowController {
         arr := []
         try {
             txt := FileRead(path, "UTF-8")
-            ; Normalize CRLF/CR/LF -> LF
             txt := StrReplace(txt, "`r")
             for line in StrSplit(txt, "`n") {
                 id := Trim(line)
@@ -147,22 +148,20 @@ class FlowController {
     }
 
     _navigateWithRandomId(hWnd) {
-        ; Επιλογή λίστας με πιθανότητα LIST1_PROB_PCT (0–100)
         prob := Settings.LIST1_PROB_PCT
         r := Random(0, 100)
         useList1 := (r < prob)
 
         sel := (useList1 ? this.list1 : this.list2)
-        if (sel.Length = 0) {
-            ; Αν η επιλεγμένη λίστα είναι κενή, δοκίμασε την άλλη
+        if (sel.Length = 0)
             sel := (useList1 ? this.list2 : this.list1)
-        }
+
         if (sel.Length = 0) {
             this.log.Write("⚠️ Καμία λίστα διαθέσιμη (list1/list2 κενές) — παραμένω στην κενή καρτέλα.")
             return
         }
 
-        idx := Random(1, sel.Length)  ; integer index
+        idx := Random(1, sel.Length)
         pick := sel[idx]
         url := "https://www.youtube.com/watch?v=" pick
 
@@ -173,7 +172,7 @@ class FlowController {
         this.edge.NavigateToUrl(hWnd, url)
         this.log.Write("🌐 Πλοήγηση σε: " url)
 
-        ; --- ΝΕΟ: Focus & Play στο YouTube (k), με fallback click ---
+        ; Focus & Play με fallback
         this.edge.PlayYouTube(hWnd)
         this.log.Write("▶️ Αποστολή εντολής Play (k) με fallback")
     }
