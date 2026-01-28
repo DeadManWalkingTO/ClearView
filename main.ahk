@@ -6,11 +6,11 @@ SetTitleMatchMode(2)
 SetWorkingDir(A_ScriptDir)
 
 ; ===== Ρυθμίσεις / Σταθερές =====
-; Στόχευση με εκτελέσιμο (σταθερό σε γλώσσες/τίτλους)
+; Στόχευση παραθύρων/διεργασίας με το εκτελέσιμο (σταθερό σε όλες τις γλώσσες/τίτλους)
 EDGE_WIN     := "ahk_exe msedge.exe"
 EDGE_PROC    := "msedge.exe"
 
-; Προσαρμόστε αν χρειάζεται (x64: C:\Program Files\Microsoft\Edge\Application\msedge.exe)
+; Προσαρμόστε αν χρειάζεται (x64 συνήθως: C:\Program Files\Microsoft\Edge\Application\msedge.exe)
 EDGE_EXE     := "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
 
 ; === Το εμφανιζόμενο όνομα προφίλ που ΘΕΛΟΥΜΕ (όπως φαίνεται στο Edge UI) ===
@@ -52,12 +52,15 @@ class Status {
             Status.Update(initialText)
             return
         }
-        Status.gui := Gui("+AlwaysOnTop -Caption +ToolWindow +E0x08000000") ; No-Activate
+        ; +E0x08000000: No-Activate (δεν παίρνει focus)
+        Status.gui := Gui("+AlwaysOnTop -Caption +ToolWindow +E0x08000000")
+        ; Αν θέλεις click-through: πρόσθεσε +E0x20 στην παραπάνω γραμμή
         Status.gui.BackColor := "0x101010"
         t := Status.gui.Add("Text", "xm ym cWhite", initialText)
         t.SetFont("s10", "Segoe UI")
         Status.txt := t
 
+        ; Τοποθέτηση: επάνω-δεξιά της κύριας οθόνης
         left := top := right := bottom := 0
         MonitorGetWorkArea(1, &left, &top, &right, &bottom)
         x := right - Status.w - Status.margin
@@ -109,12 +112,12 @@ Main() {
     } else {
         profArg := '--profile-directory="' profDir '"'
     }
-    ; Πάντα νέο παράθυρο αυτού του προφίλ (ανεξαρτήτως άλλων Edge)
+    ; ΠΑΝΤΑ νέο παράθυρο αυτού του προφίλ (ανεξαρτήτως άλλων Edge)
     profArg .= " --new-window"
 
     loop {
-        Status.Update("Έναρξη κύκλου…")
-        ; Άνοιξε νέο ΠΑΡΑΘΥΡΟ Edge στο σωστό προφίλ και πάρε τον νέο hWnd
+        Status.Update("Άνοιγμα νέου παραθύρου Edge…")
+        ; Άνοιξε νέο ΠΑΡΑΘΥΡΟ Edge στο ζητούμενο προφίλ και πάρε τον νέο hWnd
         hNew := OpenEdgeNewWindow(profArg)
         if (!hNew) {
             Status.Update("Αποτυχία ανοίγματος Edge. Επανάληψη σε 3 s…")
@@ -144,19 +147,19 @@ Main() {
 
 ; --- Εντοπίζει τον φάκελο προφίλ με βάση το εμφανιζόμενο όνομα (π.χ. "Chryseis") ---
 ResolveEdgeProfileDirByName(displayName) {
-    base := A_LocalAppData "\Microsoft\Edge\User Data\"
-    if !DirExist(base)
-        return ""  ; απίθανο, αλλά έλεγχος
+    base := EnvGet("LOCALAPPDATA") "\Microsoft\Edge\User Data\"
+    if !DirExist_(base)
+        return ""
 
-    ; Εξέτασε "Default" + "Profile *"
     candidates := ["Default"]
-    ; Συλλογή Profile X
-    for d in DirGet(base, "D") {
-        ; μόνο "Profile " + αριθμός
-        if RegExMatch(d.Name, "^Profile\s+\d+$")
-            candidates.Push(d.Name)
+    ; Πρόσθεσε όλους τους φακέλους τύπου "Profile <number>"
+    Loop Files, base "*", "D" {
+        dirName := A_LoopFileName
+        if RegExMatch(dirName, "^Profile\s+\d+$")
+            candidates.Push(dirName)
     }
 
+    esc := RegexEscape(displayName)
     for _, cand in candidates {
         pref := base cand "\Preferences"
         if !FileExist(pref)
@@ -165,11 +168,11 @@ ResolveEdgeProfileDirByName(displayName) {
         try txt := FileRead(pref, "UTF-8")
         catch
             continue
-        ; Χονδρικό αλλά λειτουργικό: αναζήτηση "profile":{"name":"Chryseis"} ή έστω "name":"Chryseis"
-        if RegExMatch(txt, '"profile"\s*:\s*\{[^}]*"name"\s*:\s*"' . RegExEscape(displayName) . '"', &m)
+
+        ; Ψάξε το εμφανιζόμενο όνομα στο JSON του Preferences
+        if RegExMatch(txt, '"profile"\s*:\s*\{[^}]*"name"\s*:\s*"' esc '"')
             return cand
-        ; fallback: ψάξε σκέτο "name":"Chryseis"
-        if RegExMatch(txt, '"name"\s*:\s*"' . RegExEscape(displayName) . '"')
+        if RegExMatch(txt, '"name"\s*:\s*"' esc '"')
             return cand
     }
     return ""
@@ -178,13 +181,10 @@ ResolveEdgeProfileDirByName(displayName) {
 ; --- Άνοιγμα ΝΕΟΥ παραθύρου Edge για δεδομένο προφίλ, επιστρέφει hWnd του ΝΕΟΥ παραθύρου ---
 OpenEdgeNewWindow(profileArg) {
     global EDGE_EXE, EDGE_WIN
-    Status.Update("Άνοιγμα νέου παραθύρου Edge στο ζητούμενο προφίλ…")
-
     ; Λίστα παραθύρων ΠΡΙΝ
     before := WinGetList(EDGE_WIN)
 
     ; Εκτέλεση (δεν μας νοιάζει αν τρέχει άλλος Edge – ανοίγουμε ΝΕΟ)
-    ; Επιστρέφει PID (ίσως του υπάρχοντος process). Δεν το εμπιστευόμαστε για targeting.
     try Run('"' EDGE_EXE '" ' profileArg)  ; π.χ. --profile-directory="Profile 3" --new-window
     catch {
         return 0
@@ -196,20 +196,17 @@ OpenEdgeNewWindow(profileArg) {
         Sleep(250)
         after := WinGetList(EDGE_WIN)
         hNew := FindNewWindowHandle(before, after)
-        if (hNew) {
+        if (hNew)
             return hNew
-        }
     }
     return 0
 }
 
 ; --- Βρίσκει ποιο hWnd εμφανίστηκε στη δεύτερη λίστα και δεν υπήρχε στην πρώτη ---
 FindNewWindowHandle(beforeArr, afterArr) {
-    ; Φτιάξε σύνολο των παλιών
     seen := Map()
     for _, h in beforeArr
         seen[h] := true
-    ; Βρες νέο
     for _, h in afterArr {
         if !seen.Has(h)
             return h
@@ -275,5 +272,16 @@ TimerSleep(sec) {
 SendShiftN() {
     Send("+n")
     Sleep(200)
+}
+
+; ===== Helpers =====
+DirExist_(path) {
+    ; Επιστρέφει true αν υπάρχει directory
+    return InStr(FileExist(path), "D") > 0
+}
+
+RegexEscape(str) {
+    ; Escape των regex metacharacters
+    return RegExReplace(str, "([\\.^$*+?()\\[\\]{}|])", "\\$1")
 }
 ; ==================== End Of File ====================
