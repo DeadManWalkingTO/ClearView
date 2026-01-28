@@ -7,7 +7,7 @@ SetWorkingDir(A_ScriptDir)
 
 ; ===== Μεταδεδομένα εφαρμογής =====
 APP_TITLE   := "BH Automation — Edge/Chryseis"
-APP_VERSION := "v1.0.8"          ; bump: single-line logs + Copy/Clear buttons + timestamp on initial [Log]
+APP_VERSION := "v1.0.9"          ; bump: log suffix (T=3s) for all timed popups
 
 ; ===== Ρυθμίσεις / Επιλογές =====
 EDGE_WIN     := "ahk_exe msedge.exe"
@@ -16,11 +16,14 @@ EDGE_PROC    := "msedge.exe"
 EDGE_EXE     := "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
 EDGE_PROFILE_NAME := "Chryseis"
 
-; (Προαιρετικά) Αν ξέρεις ακριβώς τον φάκελο (π.χ. "Profile 3"), βάλε τιμή εδώ για να παρακαμφθεί η ανίχνευση:
+; Αν ξέρεις ακριβώς τον φάκελο (π.χ. "Profile 3"), βάλε τιμή εδώ για να παρακαμφθεί η ανίχνευση:
 PROFILE_DIR_FORCE := ""   ; π.χ. "Profile 3"  ("" = απενεργοποιημένο)
 
 ; Να παραμένει ανοιχτό το νέο παράθυρο Edge στο τέλος;
 KEEP_EDGE_OPEN := true
+
+; Καθολικό timeout για ενημερωτικά popups (σε δευτ.)
+POPUP_T := 3
 
 ; ===== Κατάσταση Εκτέλεσης =====
 gRunning := false
@@ -40,8 +43,7 @@ btnClear := App.Add("Button", "x+8 yp w110 h28", "Clear Logs")
 
 ; Headline & Log (νεότερα επάνω)
 txtHead := App.Add("Text", "xm y+10 w760 h24 cBlue", "Έτοιμο. " APP_VERSION)
-; Αρχικό περιεχόμενο κενό — θα γραφτεί με Log() ώστε να μπει timestamp
-txtLog  := App.Add("Edit", "xm y+6 w760 h360 ReadOnly Multi -Wrap +VScroll", "")
+txtLog  := App.Add("Edit", "xm y+6 w860 h360 ReadOnly Multi -Wrap +VScroll", "")
 
 ; Γραμμή βοήθειας
 helpLine := App.Add("Text", "xm y+6 cGray"
@@ -59,7 +61,7 @@ btnClear.OnEvent("Click", (*) => OnClearLogs())
 
 ; Εμφάνιση GUI
 App.Show("w900 h560 Center")
-; Γράφουμε αρχική γραμμή ΜΕ ΩΡΑ μπροστά, μονοσειριακά
+; Αρχικές γραμμές στο log (με ώρα, μονοσειριακά)
 Log("[Log] " APP_TITLE " — " APP_VERSION)
 Log("Εφαρμογή ξεκίνησε (clean). " APP_TITLE " — " APP_VERSION)
 
@@ -113,6 +115,16 @@ Log(text) {
     DllCall("user32\SendMessage", "ptr", hwnd, "uint", 0xB7, "ptr", 0, "ptr", 0) ; EM_SCROLLCARET
 }
 
+; Βοηθητικό: εμφάνιση timed popup ΚΑΙ καταγραφή με suffix (T=Xs)
+ShowTimedMsg(kind, text, title, icon := "Iconi") {
+    global POPUP_T
+    ; Εμβόλιμη καταγραφή: "Popup(<kind>): <text> (T=3s)"
+    Log(Format("Popup({}): {} (T={}s)", kind, text, POPUP_T))
+    ; Προετοιμασία options: Icon… T<sec>
+    opt := icon " T" POPUP_T
+    MsgBox(text, title, opt)
+}
+
 ; Hotkeys για Log/Info μέσα στο παράθυρο της app
 #HotIf WinActive(APP_TITLE " — " APP_VERSION)
 ^+l::OnClearLogs()
@@ -163,10 +175,9 @@ OnStart() {
     gPaused := false
     gStopRequested := false
 
-    ; Start popup + log (3s) — μονοσειριακό μήνυμα
+    ; Start popup + log (T=3s)
     msg := Format("Ξεκινάει η ροή αυτοματισμού — Έκδοση: {}", APP_VERSION)
-    Log("Popup(Start): " msg)
-    MsgBox(msg, "BH Automation — Start", "Iconi T3")
+    ShowTimedMsg("Start", msg, "BH Automation — Start", "Iconi")
 
     SetHeadline("Εκκίνηση ροής…"), Log("Start pressed — " APP_VERSION)
 
@@ -229,8 +240,8 @@ RunFlow() {
         Log("Profile dir NOT found; try as-is (using display name as folder)")
         profArg := '--profile-directory="' EDGE_PROFILE_NAME '"'
         warnMsg := Format('Δεν βρέθηκε φάκελος προφίλ για "{}". Θα δοκιμάσω με: {}', EDGE_PROFILE_NAME, profArg)
-        Log("Popup(ProfileWarn): " warnMsg)
-        MsgBox(warnMsg, "BH Automation — Προειδοποίηση", "Icon! T3")
+        ; Προειδοποιητικό popup με T=3s
+        ShowTimedMsg("ProfileWarn", warnMsg, "BH Automation — Προειδοποίηση", "Icon!")
     } else {
         SetHeadline("Βρέθηκε: " profDir), Log("Profile dir: " profDir)
         profArg := '--profile-directory="' profDir '"'
@@ -251,10 +262,9 @@ RunFlow() {
     Sleep(200)
     SetHeadline("Edge έτοιμος (" EDGE_PROFILE_NAME ")"), Log("Edge ready")
 
-    ; Edge-ready popup + log (3s) — μονοσειριακό
+    ; Edge-ready popup (T=3s)
     readyMsg := Format('Edge ready ("{}").', EDGE_PROFILE_NAME)
-    Log("Popup(EdgeReady): " readyMsg)
-    MsgBox(readyMsg, "BH Automation — Edge", "Iconi T3")
+    ShowTimedMsg("EdgeReady", readyMsg, "BH Automation — Edge", "Iconi")
 
     ; 3) --- PLACE YOUR TASKS HERE ---
     OpenNewTab(hNew)
