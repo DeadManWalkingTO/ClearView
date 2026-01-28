@@ -4,12 +4,17 @@
 class Settings {
   ; --- Μεταδεδομένα / Εφαρμογή ---
   static APP_TITLE := "BH Automation — Edge/Chryseis"
-  static APP_VERSION := "v3.6.0"
+  static APP_VERSION := "v3.6.2"
 
   ; --- UI / Popups ---
   static POPUP_T := 3
   static KEEP_EDGE_OPEN := true
   static ICON_NEUTRAL := "🔵"
+
+  ; --- GUI (ΝΕΟ) ---
+  ; Ελάχιστες διαστάσεις παραθύρου (min-size window)
+  static GUI_MIN_W := 670
+  static GUI_MIN_H := 400
 
   ; --- Edge ---
   static EDGE_WIN_SEL := "ahk_exe msedge.exe"
@@ -40,14 +45,12 @@ class Settings {
   ; --- ΝΕΟ: απλοποιημένο Play ρυθμίσεις ---
   ; Αν true, πριν το click γίνεται 1× Ctrl+F6 για ελαφρύ focus στο web content.
   static SIMPLE_PLAY_FOCUS := true
-
   ; (Προαιρετικά) Αν true, πριν το click γίνεται και Home (επιστροφή κορυφής).
   static SIMPLE_PLAY_HOME := false
-
   ; (Προαιρετικά) Αν true, δίνεται και k για την αναπαραγωγή.
   static SEND_K_KEY := false
-
   ; (Προαιρετικά) Συντελεστής ύψους για το click (0..1), default στο κέντρο 0.50.
   static SIMPLE_PLAY_Y_FACTOR := 0.50
 }
+
 ; ==================== End Of File ====================

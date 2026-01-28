@@ -1,7 +1,6 @@
 ﻿; ==================== main.ahk (AHK v2) ====================
 #Requires AutoHotkey v2.0
 #SingleInstance Force
-
 SetTitleMatchMode(2)
 SetWorkingDir(A_ScriptDir)
 
@@ -17,6 +16,17 @@ AppTitle := Settings.APP_TITLE " — " Settings.APP_VERSION
 try {
   App := Gui("+AlwaysOnTop +Resize", AppTitle)
   App.SetFont("s10", "Segoe UI")
+
+  ; ΝΕΟ: min-size window από Settings
+  minW := Settings.GUI_MIN_W + 0
+  minH := Settings.GUI_MIN_H + 0
+  if (minW < 200) {
+    minW := 200
+  }
+  if (minH < 200) {
+    minH := 200
+  }
+  App.Opt("+MinSize" minW "x" minH)
 } catch Error as _eGui {
   MsgBox("Αποτυχία δημιουργίας GUI.", "Σφάλμα", "Iconx")
   ExitApp
@@ -30,15 +40,19 @@ try {
   btnClear := App.Add("Button", "x+8 yp w110 h28", "Καθαρισμός Log")
   btnExit := App.Add("Button", "x+8 yp w90 h28", "Έξοδος")
 
-  txtHead := App.Add("Text", "xm y+10 w760 h24 cBlue", "Έτοιμο. " Settings.APP_VERSION)
-  txtLog := App.Add("Edit", "xm y+6 w860 h360 ReadOnly Multi -Wrap +VScroll", "")
-  App.Add("Text", "xm y+6", "Πιθανότητα επιλογής list1 (%):")
+  txtProbTitle := App.Add("Text", "xm y+10", "Πιθανότητα επιλογής list1 (%):")
   sldProb := App.Add("Slider", "xm y+2 w300 Range0-100 TickInterval10", Settings.LIST1_PROB_PCT)
   lblProb := App.Add("Text", "x+8 yp", "list1: " Settings.LIST1_PROB_PCT "%")
+
+  txtHead := App.Add("Text", "xm y+10 w760 h24 cBlue", "Έτοιμο. " Settings.APP_VERSION)
+  txtLog := App.Add("Edit", "xm y+6 w860 h360 ReadOnly Multi -Wrap +VScroll", "")
   helpLine := App.Add("Text", "xm y+6 cGray", "Η εύρεση διάρκειας έχει αφαιρεθεί πλήρως.")
 
-  ; Εμφάνιση με συγκεκριμένο μέγεθος (χωρίς Center — θα τοποθετηθεί κάτω-δεξιά αυτόματα)
-  App.Show("w670 h400")
+  ; ΝΕΟ: αρχικό μέγεθος από Settings (ίδιο με min-size)
+  App.Show("w" Settings.GUI_MIN_W " h" Settings.GUI_MIN_H)
+
+  ; Καλό: εφαρμόζουμε reflow αμέσως μετά το Show
+  GuiReflow()
 } catch Error as _eGui2 {
   MsgBox("Αποτυχία σύνθεσης στοιχείων GUI.", "Σφάλμα", "Iconx")
   ExitApp
@@ -67,7 +81,6 @@ GetMonitorIndexForWindow() {
   } catch Error as _ePos {
     return MonitorGetPrimary()
   }
-
   winCenterX := winX + Floor(W / 2)
   winCenterY := winY + Floor(H / 2)
 
@@ -133,6 +146,8 @@ OnAppSize(*) {
   try {
     ; κάτω-δεξιά μετά από resize
     PositionBottomRight(_br_margin)
+    ; και reflow, ώστε να προσαρμόζονται τα controls
+    GuiReflow()
   } catch Error as _eSize {
     ; no-op
   }
@@ -308,12 +323,15 @@ SliderProb_Changed(ctrl, info) {
 }
 
 GuiReflow() {
-  global App, btnStart, btnPause, btnStop, btnCopy, btnClear, btnExit, txtHead, txtLog, helpLine, sldProb, lblProb
+  global App, btnStart, btnPause, btnStop, btnCopy, btnClear, btnExit
+  global txtProbTitle, sldProb, lblProb
+  global txtHead, txtLog, helpLine
+
   try {
     App.GetPos(, , &W, &H)
     lMargin := 12, rMargin := 12, topMargin := 12, gap := 8
-    x := lMargin, y := topMargin
 
+    x := lMargin, y := topMargin
     btnStart.Move(x, y, 90, 28), x += 90 + gap
     btnPause.Move(x, y, 110, 28), x += 110 + gap
     btnStop.Move(x, y, 90, 28), x += 90 + gap
@@ -321,17 +339,36 @@ GuiReflow() {
     btnClear.Move(x, y, 110, 28), x += 110 + gap
     btnExit.Move(x, y, 90, 28)
 
-    txtHead.Move(lMargin, y + 28 + 10, W - lMargin - rMargin, 24)
-    topLog := y + 28 + 10 + 24 + 6
+    ; Probability row (κάτω από τα κουμπιά)
+    probY := y + 28 + 10
+    txtProbTitle.Move(lMargin, probY, W - lMargin - rMargin, 20)
 
-    sldY := topLog
+    sldY := probY + 20 + 4
     sldProb.Move(lMargin, sldY, 300, 24)
     lblProb.Move(lMargin + 300 + 8, sldY, 140, 24)
 
-    helpLine.Move(lMargin, H - topMargin - 20, W - lMargin - rMargin, 20)
-    txtLog.Move(lMargin, sldY + 30, W - lMargin - rMargin, (H - (sldY + 30) - topMargin - 24) - 24)
+    ; Headline κάτω από πιθανότητα
+    headY := sldY + 24 + 10
+    txtHead.Move(lMargin, headY, W - lMargin - rMargin, 24)
+
+    ; Help line στο κάτω μέρος
+    helpH := 20
+    helpY := H - topMargin - helpH
+    helpLine.Move(lMargin, helpY, W - lMargin - rMargin, helpH)
+
+    ; Log κάτω από headline (και πάνω από helpLine)
+    topLog := headY + 24 + 6
+    bottomGap := 6
+    minLogH := 80
+
+    logH := (helpY - bottomGap) - topLog
+    if (logH < minLogH) {
+      logH := minLogH
+    }
+    txtLog.Move(lMargin, topLog, W - lMargin - rMargin, logH)
   } catch Error as _eReflow {
     ; no-op
   }
 }
+
 ; ==================== End Of File ====================
