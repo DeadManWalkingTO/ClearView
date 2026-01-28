@@ -7,14 +7,20 @@ SetWorkingDir(A_ScriptDir)
 
 ; ===== Μεταδεδομένα εφαρμογής =====
 APP_TITLE   := "BH Automation — Edge/Chryseis"
-APP_VERSION := "v1.0.5"          ; <-- bump έκδοσης: reverse-order log στο panel
+APP_VERSION := "v1.0.6"          ; bump: καλύτερος profile resolver + επιλογή KEEP_EDGE_OPEN
 
-; ===== Σταθερές / Ρυθμίσεις =====
+; ===== Ρυθμίσεις / Επιλογές =====
 EDGE_WIN     := "ahk_exe msedge.exe"
 EDGE_PROC    := "msedge.exe"
 ; Αν έχεις 64-bit Edge, άλλαξε διαδρομή:
 EDGE_EXE     := "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
 EDGE_PROFILE_NAME := "Chryseis"
+
+; (Προαιρετικά) Αν ξέρεις ακριβώς τον φάκελο (π.χ. "Profile 3"), βάλε τιμή εδώ για να παρακαμφθεί η ανίχνευση:
+PROFILE_DIR_FORCE := ""   ; π.χ. "Profile 3"  ("" = απενεργοποιημένο)
+
+; Να παραμένει ανοιχτό το νέο παράθυρο Edge στο τέλος;
+KEEP_EDGE_OPEN := true
 
 ; ===== Κατάσταση Εκτέλεσης =====
 gRunning := false
@@ -30,14 +36,14 @@ btnStart := App.Add("Button", "xm ym w90 h28", "Start")
 btnPause := App.Add("Button", "x+8 yp w110 h28", "Pause")
 btnStop  := App.Add("Button", "x+8 yp w90 h28",  "Stop")
 
-; Headline & Log
+; Headline & Log (νεότερα επάνω)
 txtHead := App.Add("Text", "xm y+10 w760 h24 cBlue", "Έτοιμο. " APP_VERSION)
-; Σημ.: το log θα κρατά ΝΕΟΤΕΡΑ επάνω — γι' αυτό το αρχικό μήνυμα θα καταλήξει στο κάτω μέρος αφού γραφτούν νεότερα.
 txtLog  := App.Add("Edit", "xm y+6 w760 h360 ReadOnly Multi -Wrap +VScroll"
                   , "[Log] " APP_TITLE " — " APP_VERSION)
 
 ; Γραμμή βοήθειας
-helpLine := App.Add("Text", "xm y+6 cGray", "Ctrl+Shift+L: Clear log    Ctrl+Shift+S: Save log    Ctrl+Shift+A: About")
+helpLine := App.Add("Text", "xm y+6 cGray"
+  , "Ctrl+Shift+L: Clear log    Ctrl+Shift+S: Save log    Ctrl+Shift+A: About")
 
 ; Προσαρμογή layout σε resize
 App.OnEvent("Size", (*) => GuiReflow())
@@ -48,7 +54,7 @@ btnPause.OnEvent("Click", (*) => OnPauseResume())
 btnStop.OnEvent("Click",  (*) => OnStop())
 
 ; Εμφάνιση GUI
-App.Show("w800 h540 Center")
+App.Show("w800 h560 Center")
 Log("Εφαρμογή ξεκίνησε (clean). " APP_TITLE " — " APP_VERSION)
 
 ; ===== GUI Helpers =====
@@ -77,20 +83,15 @@ Log(text) {
     global txtLog
     ts := FormatTime(A_Now, "HH:mm:ss")
     newLine := "[" ts "] " text
-
-    ; Προσθήκη στην ΑΡΧΗ του Edit ώστε τα νεότερα να είναι επάνω
     cur := txtLog.Value
     if (cur != "")
         txtLog.Value := newLine "`r`n" cur
     else
         txtLog.Value := newLine
-
-    ; Scroll-to-TOP (caret στην αρχή) χωρίς να κλέβουμε focus από Edge
+    ; caret top
     hwnd := txtLog.Hwnd
-    ; EM_SETSEL (0xB1) με 0,0 -> caret στην αρχή
-    DllCall("user32\SendMessage", "ptr", hwnd, "uint", 0xB1, "ptr", 0, "ptr", 0)
-    ; EM_SCROLLCARET (0xB7)
-    DllCall("user32\SendMessage", "ptr", hwnd, "uint", 0xB7, "ptr", 0, "ptr", 0)
+    DllCall("user32\SendMessage", "ptr", hwnd, "uint", 0xB1, "ptr", 0, "ptr", 0) ; EM_SETSEL(0,0)
+    DllCall("user32\SendMessage", "ptr", hwnd, "uint", 0xB7, "ptr", 0, "ptr", 0) ; EM_SCROLLCARET
 }
 
 ; Hotkeys για Log/Info μέσα στο παράθυρο της app
@@ -112,10 +113,11 @@ Log(text) {
 #HotIf
 
 ShowAbout() {
-    global APP_TITLE, APP_VERSION, EDGE_EXE, EDGE_PROFILE_NAME
+    global APP_TITLE, APP_VERSION, EDGE_EXE, EDGE_PROFILE_NAME, KEEP_EDGE_OPEN
     MsgBox( APP_TITLE " — " APP_VERSION "`n"
-          . "Profile: " EDGE_PROFILE_NAME "`n"
-          . "Edge path: " EDGE_EXE
+          . "Profile (display): " EDGE_PROFILE_NAME "`n"
+          . "Edge path: " EDGE_EXE "`n"
+          . "Keep window open: " (KEEP_EDGE_OPEN ? "Yes" : "No")
           , "About", "Iconi")
     Log(Format("About shown — {} {}", APP_TITLE, APP_VERSION))
 }
@@ -132,7 +134,7 @@ OnStart() {
     gPaused := false
     gStopRequested := false
 
-    ; --- Μήνυμα εκκίνησης με timeout 3s + Log ---
+    ; Start popup + log (3s)
     msg := Format("Ξεκινάει η ροή αυτοματισμού.`nΈκδοση: {}", APP_VERSION)
     Log("Popup(Start): " msg)
     MsgBox(msg, "BH Automation — Start", "Iconi T3")
@@ -182,16 +184,21 @@ OnStop() {
 
 ; ===== Κύρια Ροή (CLEAN) =====
 RunFlow() {
-    global EDGE_PROFILE_NAME
-    ; 1) Βρες φάκελο προφίλ από display name
-    SetHeadline("Εύρεση φακέλου προφίλ…"), Log("Resolve profile by name: " EDGE_PROFILE_NAME)
-    profDir := ResolveEdgeProfileDirByName(EDGE_PROFILE_NAME)
+    global EDGE_PROFILE_NAME, PROFILE_DIR_FORCE, KEEP_EDGE_OPEN
+    ; 0) Αν έχεις “καρφωμένο” φάκελο, χρησιμοποίησέ τον
+    if (PROFILE_DIR_FORCE != "") {
+        profDir := PROFILE_DIR_FORCE
+        Log("Profile dir (forced): " profDir)
+    } else {
+        ; 1) Βρες φάκελο προφίλ από display name — πρώτα μέσω Local State, μετά Preferences
+        SetHeadline("Εύρεση φακέλου προφίλ…"), Log("Resolve profile by name: " EDGE_PROFILE_NAME)
+        profDir := ResolveEdgeProfileDirByName(EDGE_PROFILE_NAME)
+    }
+
     if (profDir = "") {
         SetHeadline("⚠️ Δεν βρέθηκε φάκελος για: " EDGE_PROFILE_NAME)
         Log("Profile dir NOT found; try as-is (using display name as folder)")
         profArg := '--profile-directory="' EDGE_PROFILE_NAME '"'
-
-        ; --- Προειδοποιητικό μήνυμα με timeout 3s + Log ---
         warnMsg := Format('Δεν βρέθηκε φάκελος προφίλ για "{}".`nΘα δοκιμάσω με: {}', EDGE_PROFILE_NAME, profArg)
         Log("Popup(ProfileWarn): " warnMsg)
         MsgBox(warnMsg, "BH Automation — Προειδοποίηση", "Icon! T3")
@@ -203,7 +210,7 @@ RunFlow() {
 
     ; 2) Άνοιξε ΝΕΟ παράθυρο Edge στο προφίλ
     CheckAbortOrPause()
-    SetHeadline("Άνοιγμα νέου παραθύρου Edge…"), Log("OpenEdgeNewWindow")
+    SetHeadline("Άνοιγμα νέου παραθύρου Edge…"), Log("OpenEdgeNewWindow: " profArg)
     hNew := OpenEdgeNewWindow(profArg)
     if (!hNew) {
         SetHeadline("❌ Αποτυχία ανοίγματος Edge."), Log("OpenEdgeNewWindow failed")
@@ -215,20 +222,24 @@ RunFlow() {
     Sleep(200)
     SetHeadline("Edge έτοιμος (" EDGE_PROFILE_NAME ")"), Log("Edge ready")
 
-    ; --- Μήνυμα Edge ready με timeout 3s + Log ---
+    ; Edge-ready popup + log (3s)
     readyMsg := Format('Edge ready ("{}").', EDGE_PROFILE_NAME)
     Log("Popup(EdgeReady): " readyMsg)
     MsgBox(readyMsg, "BH Automation — Edge", "Iconi T3")
 
     ; 3) --- PLACE YOUR TASKS HERE ---
-    ; Default: άνοιγμα μιας νέας κενής καρτέλας και τέλος
     OpenNewTab(hNew)
     SetHeadline("Νέα καρτέλα ανοιχτή — καμία άλλη ενέργεια."), Log("Idle ready")
 
-    ; 4) Κλείσιμο ΜΟΝΟ του νέου παραθύρου (σχολίασέ το αν θες να μείνει ανοιχτό)
-    WinClose("ahk_id " hNew)
-    WinWaitClose("ahk_id " hNew, , 5)
-    SetHeadline("Κύκλος ολοκληρώθηκε."), Log("Cycle done")
+    ; 4) Κλείσιμο ή διατήρηση νέου παραθύρου
+    if (!KEEP_EDGE_OPEN) {
+        WinClose("ahk_id " hNew)
+        WinWaitClose("ahk_id " hNew, , 5)
+        SetHeadline("Κύκλος ολοκληρώθηκε."), Log("Cycle done")
+    } else {
+        SetHeadline("Κύκλος ολοκληρώθηκε (Edge παραμένει ανοιχτός).")
+        Log("Cycle done (keep window open)")
+    }
 }
 
 ; ===== Έλεγχοι Pause / Stop =====
@@ -241,27 +252,54 @@ CheckAbortOrPause() {
         throw Error("Stopped by user")
 }
 
-; ===== Ελάχιστες βοηθητικές =====
+; ===== Βοηθητικές: Profile Resolve =====
+; Προσπαθεί πρώτα από το "Local State" (profile.info_cache), μετά fallback διασχίζοντας "Preferences" ανά προφίλ.
 ResolveEdgeProfileDirByName(displayName) {
     base := EnvGet("LOCALAPPDATA") "\Microsoft\Edge\User Data\"
     if !DirExist_(base)
         return ""
 
-    candidates := ["Default"]
-    Loop Files, base "*", "D" {
-        dirName := A_LoopFileName
-        if RegExMatch(dirName, "^Profile\s+\d+$")
-            candidates.Push(dirName)
+    esc := RegexEscape(displayName)
+
+    ; 1) Δοκίμασε "Local State" (περιέχει χαρτογράφηση προφίλ → όνομα)
+    localState := base "Local State"
+    if FileExist(localState) {
+        txt := ""
+        try txt := FileRead(localState, "UTF-8")
+        catch txt := ""
+        ; Αναζήτηση στο info_cache: "Profile 3":{"name":"Chryseis", ...}
+        ; και "Default":{"name":"<name>"}
+        pat := '"profile"\s*:\s*\{\s*"info_cache"\s*:\s*\{([\s\S]*?)\}\s*\}'
+        if RegExMatch(txt, pat, &m) {
+            cache := m[1]
+            ; Βρες εγγραφές τύπου "Profile X":{"name":"..."} ή "Default":{"name":"..."}
+            ; Θα κάνουμε loop με global regex για όλα τα ζεύγη "dir":{"name":"..."}
+            pos := 1
+            While RegExMatch(cache, '"([^"]+)"\s*:\s*\{[^}]*"name"\s*:\s*"([^"]+)"', &mm, pos) {
+                dir := mm[1], nm := mm[2]
+                ; Συμφωνία ονόματος;
+                if (nm = displayName)
+                    return dir
+                pos := mm.Pos(0) + mm.Len(0)
+            }
+        }
     }
 
-    esc := RegexEscape(displayName)
+    ; 2) Fallback: σάρωση φακέλων "Default" + "Profile *" και έλεγχος "Preferences"
+    candidates := ["Default"]
+    Loop Files, base "*", "D" {
+        d := A_LoopFileName
+        if RegExMatch(d, "^Profile\s+\d+$")
+            candidates.Push(d)
+    }
     for _, cand in candidates {
         pref := base cand "\Preferences"
         if !FileExist(pref)
             continue
         txt := ""
         try txt := FileRead(pref, "UTF-8")
-        catch
+        catch txt := ""
+        if (txt = "")
             continue
         if RegExMatch(txt, '"profile"\s*:\s*\{[^}]*"name"\s*:\s*"' esc '"')
             return cand
@@ -271,6 +309,7 @@ ResolveEdgeProfileDirByName(displayName) {
     return ""
 }
 
+; ===== Edge Window Handling =====
 OpenEdgeNewWindow(profileArg) {
     global EDGE_EXE, EDGE_WIN
     before := WinGetList(EDGE_WIN)
