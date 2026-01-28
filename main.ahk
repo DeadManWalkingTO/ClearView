@@ -85,8 +85,8 @@ class Status {
             }
 
             ; Ελαφρύ “σπρώξιμο” στο top‑most layer
-            WinSetAlwaysOnTop(false, Status.gui.Hwnd)
-            WinSetAlwaysOnTop(true , Status.gui.Hwnd)
+            WinSetAlwaysOnTop(false, "ahk_id " Status.gui.Hwnd)
+            WinSetAlwaysOnTop(true , "ahk_id " Status.gui.Hwnd)
 
             ; Προσαρμογή διάταξης αν αλλάξει μέγεθος (μελλοντικά)
             Status.gui.OnEvent("Size", (*) => Status._Reflow())
@@ -119,7 +119,8 @@ class Status {
         ; Buffer για UI (throttle)
         Status._buf.Push(1)
         if !Status._timerOn {
-            SetTimer(Status._FlushUI, -250) ; εκτέλεση σε ~250 ms
+            ; *** FIX: δίνουμε valid callback ως lambda ***
+            SetTimer(() => Status._FlushUI(), -250)
             Status._timerOn := true
         }
     }
@@ -148,8 +149,8 @@ class Status {
     static BringToFront() {
         if (Status.gui = "")
             return
-        WinSetAlwaysOnTop(false, Status.gui.Hwnd)
-        WinSetAlwaysOnTop(true , Status.gui.Hwnd)
+        WinSetAlwaysOnTop(false, "ahk_id " Status.gui.Hwnd)
+        WinSetAlwaysOnTop(true , "ahk_id " Status.gui.Hwnd)
     }
 
     ; Κλείσιμο
