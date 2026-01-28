@@ -7,7 +7,7 @@ SetWorkingDir(A_ScriptDir)
 
 ; ===== Μεταδεδομένα εφαρμογής =====
 APP_TITLE   := "BH Automation — Edge/Chryseis"
-APP_VERSION := "v1.0.17"         ; bump: add DirExist_/RegexEscape helpers to resolve #Warn
+APP_VERSION := "v1.0.18"         ; bump: replace MD :emoji: with Unicode icons in logs
 
 ; ===== Ρυθμίσεις / Επιλογές =====
 EDGE_WIN     := "ahk_exe msedge.exe"
@@ -24,9 +24,6 @@ KEEP_EDGE_OPEN := true
 
 ; Καθολικό timeout για ενημερωτικά popups (σε δευτ.)
 POPUP_T := 3
-
-; ===== Επιλογές εικονιδίων Log (Markdown shortcodes) =====
-LOG_MD_MODE := true   ; χρησιμοποιεί :emoji: shortcodes
 
 ; ===== Κατάσταση Εκτέλεσης =====
 gRunning := false
@@ -92,7 +89,7 @@ SetHeadline(text) {
     txtHead.Value := text "  —  " APP_VERSION
 }
 
-; ===== Title Case & Log =====
+; ===== Utilities: Title Case & Log =====
 JoinTokens(arr, sep := " ") {
     out := ""
     for i, v in arr {
@@ -103,6 +100,7 @@ JoinTokens(arr, sep := " ") {
     return out
 }
 
+; Single-line Title Case (με προστασία του suffix (T=3s))
 ToTitleCase(text) {
     ; Normalize spaces
     t := StrReplace(text, "`r", " ")
@@ -111,17 +109,8 @@ ToTitleCase(text) {
     t := RegExReplace(t,  "\s+", " ")
     t := Trim(t)
 
-    ; Προστασία "(T=3s)" και :emoji:
+    ; Προστασία "(T=3s)" για να μην αλλοιωθεί
     t := StrReplace(t, "(T=3s)", "__TIME_SUFFIX__")
-    saved := Map()
-    idx := 0, pos := 1
-    while RegExMatch(t, ":\w+?:", &mm, pos) {
-        idx++
-        placeholder := "__MD_EMOJI_" idx "__"
-        saved[placeholder] := mm[0]
-        t := SubStr(t, 1, mm.Pos(0)-1) . placeholder . SubStr(t, mm.Pos(0)+mm.Len(0))
-        pos := InStr(t, placeholder) + StrLen(placeholder)
-    }
 
     parts := StrSplit(t, " ")
     outParts := []
@@ -134,44 +123,40 @@ ToTitleCase(text) {
     }
     tc := JoinTokens(outParts, " ")
 
-    for placeholder, original in saved
-        tc := StrReplace(tc, placeholder, original)
     tc := StrReplace(tc, "__TIME_SUFFIX__", "(T=3s)")
     return tc
 }
 
-GetLogIconMD(msgTitleCase) {
-    if InStr(msgTitleCase, "Popup:")
-        return ":information_source:"
-    if InStr(msgTitleCase, "Profile Warn") || InStr(msgTitleCase, "Warning")
-        return ":warning:"
-    if InStr(msgTitleCase, "Open Edge New Window")
-        return ":fast_forward:"
-    if InStr(msgTitleCase, "New Tab")
-        return ":arrow_forward:"
-    if InStr(msgTitleCase, "Edge Ready")
-        return ":white_check_mark:"
-    if InStr(msgTitleCase, "Cycle Done")
-        return ":sparkles:"
-    if InStr(msgTitleCase, "Paused")
-        return ":pause_button:"
-    if InStr(msgTitleCase, "Stop Requested")
-        return ":x:"
+; Επιλογή Unicode icon ανά κατηγορία μηνύματος (input: Title Case string)
+GetLogIconUnicode(msgTitleCase) {
+    ; Πιο συγκεκριμένα πρώτα
+    if InStr(msgTitleCase, "Popup:")                 ; popup ενημερώσεων
+        return "ℹ️"    ; information
+    if InStr(msgTitleCase, "Profile Warn")           ; προειδοποίηση
+        return "⚠️"
+    if InStr(msgTitleCase, "Open Edge New Window")   ; «γρήγορη κίνηση»
+        return "⏩"
+    if InStr(msgTitleCase, "New Tab")                ; νέα καρτέλα
+        return "➡️"
+    if InStr(msgTitleCase, "Edge Ready")             ; έτοιμο/OK
+        return "✅"
+    if InStr(msgTitleCase, "Cycle Done")             ; ολοκλήρωση
+        return "✨"
+    if InStr(msgTitleCase, "Paused")                 ; παύση
+        return "⏸️"
+    if InStr(msgTitleCase, "Stop Requested")         ; stop
+        return "❌"
     if InStr(msgTitleCase, "Start Pressed") || InStr(msgTitleCase, "Resumed")
-        return ":arrow_right:"
-    return ":small_blue_diamond:"
+        return "▶️"    ; έναρξη/συνέχιση
+    ; Προεπιλογή
+    return "•"
 }
 
-GetLogIcon(msgTitleCase) {
-    global LOG_MD_MODE
-    return LOG_MD_MODE ? GetLogIconMD(msgTitleCase) : ">"
-}
-
-; Reverse-chronological Log (νεότερα επάνω), Title Case, single-line, με :emoji: μετά την ώρα
+; Reverse-chronological Log (νεότερα επάνω), Title Case, single-line, με Unicode icon μετά την ώρα
 Log(text) {
     global txtLog
     tc := ToTitleCase(text)
-    icon := GetLogIcon(tc)
+    icon := GetLogIconUnicode(tc)
     ts := FormatTime(A_Now, "HH:mm:ss")
     newLine := "[" ts "] " icon " " tc
 
@@ -183,11 +168,12 @@ Log(text) {
 
     ; caret top
     hwnd := txtLog.Hwnd
-    DllCall("user32\SendMessage", "ptr", hwnd, "uint", 0xB1, "ptr", 0, "ptr", 0)
-    DllCall("user32\SendMessage", "ptr", hwnd, "uint", 0xB7, "ptr", 0, "ptr", 0)
+    DllCall("user32\SendMessage", "ptr", hwnd, "uint", 0xB1, "ptr", 0, "ptr", 0) ; EM_SETSEL(0,0)
+    DllCall("user32\SendMessage", "ptr", hwnd, "uint", 0xB7, "ptr", 0, "ptr", 0) ; EM_SCROLLCARET
 }
 
 ; Timed popup + log "(T=3s)"
+; Μορφή στο log: "Popup: <Kind> (T=3s)" (θα πάρει Unicode icon από Log()).
 ShowTimedMsg(kind, text, title, icon := "Iconi") {
     global POPUP_T
     Log(Format("Popup: {} (T={}s)", kind, POPUP_T))
@@ -454,14 +440,11 @@ FindNewWindowHandle(beforeArr, afterArr) {
     return 0
 }
 
-; ===== Helpers (έλλειπαν και προκαλούσαν #Warn) =====
+; ===== Helpers =====
 DirExist_(path) {
-    ; true αν υπάρχει directory (FileExist επιστρέφει "D" για φακέλους)
     return InStr(FileExist(path), "D") > 0
 }
-
 RegexEscape(str) {
-    ; Escape ειδικών regex χαρακτήρων
     return RegExReplace(str, "([\\.^$*+?()\\[\\]{}|])", "\\$1")
 }
 ; ==================== End Of File ====================
