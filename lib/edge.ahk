@@ -83,6 +83,76 @@ class EdgeService {
         Sleep(250)
     }
 
+    ; ------ ΝΕΕΣ ΜΕΘΟΔΟΙ (Tabs/Profiles) ------
+
+    ; Επιστρέφει το profile-directory του παραθύρου (π.χ. "Profile 3" ή "Default").
+    ; Αν δεν βρεθεί, επιστρέφει κενό "" και ΔΕΝ αγγίζουμε το παράθυρο.
+    GetWindowProfileDir(hWnd) {
+        pid := WinGetPID("ahk_id " hWnd)
+        cmd := ""
+        try {
+            for proc in ComObjGet("winmgmts:").ExecQuery("SELECT CommandLine FROM Win32_Process WHERE ProcessId=" pid) {
+                cmd := proc.CommandLine
+                break
+            }
+        } catch as e {
+            cmd := ""
+        }
+        if (cmd = "")
+            return ""
+
+        ; Μορφή 1 (quoted): --profile-directory="Profile N"  ή  --profile-directory="Default"
+        ; ΣΗΜΑΝΤΙΚΟ: Στο AHK v2, τα διπλά εισαγωγικά μέσα σε string διαφεύγουν με backtick: `"
+        if RegExMatch(cmd, "--profile-directory=`"([^`"]+)`"", &m)
+            return m[1]
+
+        ; Μορφή 2 (unquoted): --profile-directory=ProfileN  ή  --profile-directory=Default
+        if RegExMatch(cmd, "--profile-directory=([^\s]+)", &m)
+            return m[1]
+
+        ; Ασφάλεια: αν δεν βρεθεί ρητό arg, δεν το κλείνουμε
+        return ""
+    }
+
+    ; Σενάριο νέου παραθύρου: υπάρχουν ακριβώς δύο καρτέλες (η default + η νέα).
+    ; Κρατάμε την νέα ενεργή καρτέλα, κλείνουμε την άλλη.
+    CloseOtherTabsInNewWindow(hWnd) {
+        WinActivate("ahk_id " hWnd)
+        WinWaitActive("ahk_id " hWnd, , 3)
+        ; Μετακίνηση στην «παλιά» καρτέλα (μία αριστερά)
+        Send("^+{Tab}")
+        Sleep(120)
+        ; Κλείσιμο της «παλιάς» καρτέλας
+        Send("^{w}")
+        Sleep(120)
+        ; Απομένει η νέα καρτέλα ως μοναδική
+    }
+
+    ; Κλείνει ΟΛΑ τα άλλα παράθυρα του ΙΔΙΟΥ προφίλ (άρα και τις καρτέλες τους)
+    CloseOtherWindowsOfProfile(profileDir, hKeep) {
+        all := WinGetList(this.sel)
+        for _, h in all {
+            if (h = hKeep)
+                continue
+            pd := this.GetWindowProfileDir(h)
+            if (pd = "")
+                continue
+            if (pd = profileDir) {
+                ; Ευγενικό κλείσιμο παραθύρου (κλείνουν όλες οι καρτέλες του)
+                WinClose("ahk_id " h)
+                WinWaitClose("ahk_id " h, , 3)
+                if WinExist("ahk_id " h) {
+                    ; Fallback: Ctrl+Shift+W (κλείσιμο window με tabs)
+                    WinActivate("ahk_id " h)
+                    WinWaitActive("ahk_id " h, , 2)
+                    Send("^+w")
+                    Sleep(120)
+                    WinWaitClose("ahk_id " h, , 2)
+                }
+            }
+        }
+    }
+
     ; ---- Internals ----
     _findNewWindow(beforeArr, afterArr) {
         seen := Map()
@@ -93,6 +163,7 @@ class EdgeService {
                 return h
         return 0
     }
+
     _dirExist(path) => InStr(FileExist(path), "D") > 0
 }
 ; ==================== End Of File ====================

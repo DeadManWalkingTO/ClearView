@@ -36,7 +36,6 @@ class FlowController {
             this.log.Write("❌ Σφάλμα: " e.Message)
             this.log.SetHeadline("❌ Σφάλμα: " e.Message)
         }
-
         this._running := false
         this._paused := false
         this._stopRequested := false
@@ -60,6 +59,8 @@ class FlowController {
         this._checkAbortOrPause()
         this.log.SetHeadline("🔎 Εύρεση Φακέλου Προφίλ…"), this.log.Write("🔎 Εύρεση Φακέλου Προφίλ Με Βάση Το Όνομα: " Settings.EDGE_PROFILE_NAME)
         profDir := this.edge.ResolveProfileDirByName(Settings.EDGE_PROFILE_NAME)
+        profileFound := (profDir != "")  ; ΝΕΟ: Σήμανση αν όντως βρέθηκε προφίλ
+
         if (profDir = "") {
             this.log.SetHeadline("⚠️ Δεν Βρέθηκε Φάκελος Για: " Settings.EDGE_PROFILE_NAME)
             this.log.Write("⚠️ Ο Φάκελος Προφίλ Δεν Βρέθηκε — Θα Δοκιμάσω Με Χρήση Του Εμφανιζόμενου Ονόματος Ως Φάκελο")
@@ -90,9 +91,20 @@ class FlowController {
         readyMsg := Format('Edge έτοιμο για χρήση ("{ }").', Settings.EDGE_PROFILE_NAME)
         this.log.ShowTimed("EdgeReady", readyMsg, "BH Automation — Edge", "Iconi")
 
-        ; 3) --- Κύρια λογική (παράδειγμα: άνοιγμα κενής καρτέλας) ---
+        ; 3) Κύρια λογική (νέα καρτέλα)
         this.edge.NewTab(hNew)
         this.log.SetHeadline("➡️ Νέα Καρτέλα Ανοιχτή — Καμία Άλλη Ενέργεια."), this.log.Write("➡️ Νέα Καρτέλα (Κενή)")
+
+        ; 3.1) ΝΕΑ ΛΟΓΙΚΗ ΓΙΑ ΚΑΡΤΕΛΕΣ/ΠΑΡΑΘΥΡΑ ΙΔΙΟΥ ΠΡΟΦΙΛ
+        if (profileFound) {
+            this.log.Write("🧹 Βρέθηκε προφίλ — κρατώ τη νέα καρτέλα στο νέο παράθυρο & κλείνω όλες τις καρτέλες των άλλων παραθύρων του ίδιου προφίλ.")
+            ; i) Κλείσε την «άλλη» καρτέλα στο νέο παράθυρο (κρατά τη νέα)
+            this.edge.CloseOtherTabsInNewWindow(hNew)
+            ; ii) Κλείσε όλα τα άλλα παράθυρα του ίδιου profDir (άρα όλες οι καρτέλες τους)
+            this.edge.CloseOtherWindowsOfProfile(profDir, hNew)
+        } else {
+            this.log.Write("ℹ️ Δεν βρέθηκε προφίλ — ΔΕΝ κλείνω άλλες καρτέλες/παράθυρα.")
+        }
 
         ; 4) Κλείσιμο/Παραμονή παραθύρου
         if (!Settings.KEEP_EDGE_OPEN) {
