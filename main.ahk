@@ -40,87 +40,209 @@ CNT_ALL   := 18
 CNT_GAMES := 62
 ; CNT_SHORTS := 25
 
-; ===== Status Panel (module) =====
+; ===== Status Panel (βελτιωμένο: headline + rolling log με throttle) =====
 class Status {
     static gui := ""
-    static txt := ""
-    static w := 420, h := 90
+    static txtHead := ""
+    static txtLog := ""
+    static w := 520, h := 240
     static margin := 12
+    static shownOnce := false
+    static _buf := []           ; buffer pending UI updates (throttled)
+    static _log := []           ; rolling log lines
+    static _logMax := 200       ; max lines to keep
+    static _timerOn := false
 
+    ; Δημιουργία/προβολή (ή επαναφορά)
     static Show(initialText := "Έναρξη…") {
-        if (Status.gui != "") {
-            Status.Update(initialText)
+        if (Status.gui = "") {
+            Status.gui := Gui("+AlwaysOnTop -Caption +ToolWindow +DPIScale +E0x08000000")
+            Status.gui.BackColor := "0x101010"
+            Status.gui.SetFont("s10", "Consolas")
+
+            ; Headline (λευκό, έντονο)
+            Status.txtHead := Status.gui.Add("Text", "xm ym w" (Status.w - 2*Status.margin) " cWhite", initialText)
+            Status.txtHead.SetFont("s10 bold", "Consolas")
+
+            ; Log: Edit ReadOnly + Vertical Scroll
+            Status.txtLog := Status.gui.Add(
+                "Edit"
+              , "xm y+8 w" (Status.w - 2*Status.margin) " h" (Status.h - 64) " ReadOnly Multi -Wrap +VScroll cSilver"
+              , "")
+
+            ; Πρώτη εμφάνιση: κέντρο οθόνης (σίγουρη ορατότητα)
+            if !Status.shownOnce {
+                x := (A_ScreenWidth  - Status.w) // 2
+                y := (A_ScreenHeight - Status.h) // 2
+                Status.gui.Show(Format("x{} y{} w{} h{} NA", x, y, Status.w, Status.h))
+                Status.shownOnce := true
+            } else {
+                left := top := right := bottom := 0
+                MonitorGetWorkArea(1, &left, &top, &right, &bottom)
+                x := right - Status.w - Status.margin
+                y := top   + Status.margin
+                Status.gui.Show(Format("x{} y{} w{} h{} NA", x, y, Status.w, Status.h))
+            }
+
+            ; Ελαφρύ “σπρώξιμο” στο top‑most layer
+            WinSetAlwaysOnTop(false, Status.gui.Hwnd)
+            WinSetAlwaysOnTop(true , Status.gui.Hwnd)
+
+            ; Προσαρμογή διάταξης αν αλλάξει μέγεθος (μελλοντικά)
+            Status.gui.OnEvent("Size", (*) => Status._Reflow())
+        } else {
+            Status.BringToFront()
+        }
+        Status.Set(initialText)
+    }
+
+    ; Θέτει τη γραμμή κατάστασης (headline)
+    static Set(text) {
+        if (Status.gui = "") {
+            Status.Show(text)
             return
         }
-        ; +E0x08000000: No-Activate (δεν παίρνει focus)
-        Status.gui := Gui("+AlwaysOnTop -Caption +ToolWindow +E0x08000000")
-        ; Αν θέλεις click-through: πρόσθεσε +E0x20 στην παραπάνω γραμμή
-        Status.gui.BackColor := "0x101010"
-        t := Status.gui.Add("Text", "xm ym cWhite", initialText)
-        t.SetFont("s10", "Segoe UI")
-        Status.txt := t
-
-        ; Τοποθέτηση: επάνω-δεξιά της κύριας οθόνης
-        left := top := right := bottom := 0
-        MonitorGetWorkArea(1, &left, &top, &right, &bottom)
-        x := right - Status.w - Status.margin
-        y := top   + Status.margin
-
-        Status.gui.Show(Format("x{} y{} w{} h{} NA", x, y, Status.w, Status.h))
-        WinSetTransparent(230, Status.gui.Hwnd)
+        Status.txtHead.Value := text
     }
 
-    static Update(text) {
+    ; Alias για συμβατότητα με παλαιότερες κλήσεις
+    static Update(text) => Status.Set(text)
+
+    ; Προσθέτει γραμμή στο rolling log
+    static Log(text) {
+        ts := FormatTime(A_Now, "HH:mm:ss")
+        line := "[" ts "] " text
+        Status._log.Push(line)
+        while (Status._log.Length > Status._logMax)
+            Status._log.RemoveAt(1)
+
+        ; Buffer για UI (throttle)
+        Status._buf.Push(1)
+        if !Status._timerOn {
+            SetTimer(Status._FlushUI, -250) ; εκτέλεση σε ~250 ms
+            Status._timerOn := true
+        }
+    }
+
+    ; Καθαρισμός log
+    static Clear() {
+        Status._log := []
+        Status._buf := []
+        if (Status.txtLog != "")
+            Status.txtLog.Value := ""
+    }
+
+    ; Εναλλαγή εμφάνισης/επαναφορά μπροστά
+    static Toggle() {
         if (Status.gui = "")
-            Status.Show(text)
-        else
-            Status.txt.Value := text
+            return Status.Show()
+        if Status.gui.Visible {
+            Status.gui.Hide()
+        } else {
+            Status.BringToFront()
+            Status.gui.Show("NA")
+        }
     }
 
+    ; Φέρ’ το πάνω (χωρίς focus)
+    static BringToFront() {
+        if (Status.gui = "")
+            return
+        WinSetAlwaysOnTop(false, Status.gui.Hwnd)
+        WinSetAlwaysOnTop(true , Status.gui.Hwnd)
+    }
+
+    ; Κλείσιμο
     static Close() {
         if (Status.gui != "") {
             Status.gui.Destroy()
             Status.gui := ""
-            Status.txt := ""
+            Status.txtHead := ""
+            Status.txtLog := ""
+            Status._buf := []
+            Status._log := []
+            Status._timerOn := false
+            Status.shownOnce := false
+        }
+    }
+
+    ; Εφαρμόζει pending ενημερώσεις στο UI (throttled) χωρίς να αλλάζει focus
+    static _FlushUI() {
+        Status._timerOn := false
+        if (Status.gui = "" || Status.txtLog = "")
+            return
+        if (Status._buf.Length) {
+            Status._buf := []
+            Status.txtLog.Value := Status._log.Join("`r`n")
+            ; Scroll-to-bottom με μηνύματα (χωρίς focus)
+            hwnd := Status.txtLog.Hwnd
+            ; EM_SETSEL (0xB1) με -1,-1 -> caret στο τέλος
+            DllCall("user32\SendMessage", "ptr", hwnd, "uint", 0xB1, "ptr", -1, "ptr", -1)
+            ; EM_SCROLLCARET (0xB7)
+            DllCall("user32\SendMessage", "ptr", hwnd, "uint", 0xB7, "ptr", 0, "ptr", 0)
+        }
+    }
+
+    ; Αναδιάταξη controls όταν αλλάζει μέγεθος (για μελλοντικά draggable panel)
+    static _Reflow() {
+        try {
+            Status.txtHead.Move(, , Status.w - 2*Status.margin)
+            Status.txtLog.Move(, , Status.w - 2*Status.margin, Status.h - 64)
         }
     }
 }
 
 ; ===== Hotkeys =====
-F9::Reload()
+F8::Status.Toggle()   ; Show/Hide/Bring-to-front του panel
+F9::Reload()          ; Restart script
 F10::{
-    Suspend(-1)
-    Status.Update(A_IsSuspended ? "⏸️ Παύση" : "▶️ Συνέχιση")
+    Suspend(-1)       ; Pause/Resume
+    Status.Set(A_IsSuspended ? "⏸️ Παύση" : "▶️ Συνέχιση")
+    Status.Log(A_IsSuspended ? "Paused" : "Resumed")
 }
 F12::{
+    Status.Log("Exit requested")
     Status.Close()
     ExitApp()
 }
 
+; Προαιρετικά: Clear/Save log
+^+l::Status.Clear()   ; Ctrl+Shift+L: καθάρισε το log
+^+s::{                ; Ctrl+Shift+S: αποθήκευση log σε αρχείο
+    if !DirExist("logs")
+        DirCreate("logs")
+    fn := Format("logs\status_{:04}{:02}{:02}_{:02}{:02}{:02}.txt"
+        , A_YYYY, A_MM, A_DD, A_Hour, A_Min, A_Sec)
+    FileAppend(Status._log.Join("`r`n"), fn, "UTF-8")
+    Status.Set("Log saved → " fn), Status.Log("Log saved → " fn)
+}
+
 ; ===== Εκκίνηση =====
 Status.Show("Το script ξεκίνησε…")
+Status.Log("Bootstrap")
 Main()
 
 ; ==================== Ρουτίνες ====================
 Main() {
     global EDGE_PROFILE_NAME
     ; 1) Επίλυση φακέλου προφίλ από εμφανιζόμενο όνομα (π.χ. Chryseis → Profile 3)
+    Status.Set("Εύρεση φακέλου προφίλ…"), Status.Log("Resolve profile by display name: " EDGE_PROFILE_NAME)
     profDir := ResolveEdgeProfileDirByName(EDGE_PROFILE_NAME)
     if (profDir = "") {
-        Status.Update("⚠️ Δεν βρέθηκε φάκελος για προφίλ: " EDGE_PROFILE_NAME ". Θα δοκιμάσω ως έχει…")
+        Status.Set("⚠️ Δεν βρέθηκε φάκελος για: " EDGE_PROFILE_NAME), Status.Log("Profile dir NOT found; will try as-is")
         profArg := '--profile-directory="' EDGE_PROFILE_NAME '"'
     } else {
+        Status.Set("Βρέθηκε φάκελος: " profDir), Status.Log("Profile dir: " profDir)
         profArg := '--profile-directory="' profDir '"'
     }
-    ; ΠΑΝΤΑ νέο παράθυρο αυτού του προφίλ (ανεξαρτήτως άλλων Edge)
+    ; ΠΑΝΤΑ νέο παράθυρο αυτού του προφίλ (ανεξάρτητα από άλλον Edge)
     profArg .= " --new-window"
 
     loop {
-        Status.Update("Άνοιγμα νέου παραθύρου Edge…")
-        ; Άνοιξε νέο ΠΑΡΑΘΥΡΟ Edge στο ζητούμενο προφίλ και πάρε τον νέο hWnd
+        Status.Set("Άνοιγμα νέου παραθύρου Edge…"), Status.Log("OpenEdgeNewWindow")
         hNew := OpenEdgeNewWindow(profArg)
         if (!hNew) {
-            Status.Update("Αποτυχία ανοίγματος Edge. Επανάληψη σε 3 s…")
+            Status.Set("Αποτυχία ανοίγματος Edge. Retry σε 3 s…"), Status.Log("OpenEdgeNewWindow failed; sleep 3s")
             Sleep(3000)
             continue
         }
@@ -128,19 +250,19 @@ Main() {
         WinWaitActive("ahk_id " hNew, , 5)
         WinMaximize("ahk_id " hNew)
         Sleep(200)
-        Status.Update("Edge έτοιμος (" EDGE_PROFILE_NAME ").")
+        Status.Set("Edge έτοιμος (" EDGE_PROFILE_NAME ")"), Status.Log("Edge ready")
 
         ; === Κάθε ροή σε ΝΕΑ καρτέλα ===
-        NewTab(hNew), PlayPlaylist(URL_ALL,   CNT_ALL,   T_LONG, true)
-        NewTab(hNew), PlayFixed(FIXED,        T_SHORT)
-        NewTab(hNew), PlayPlaylist(URL_GAMES, CNT_GAMES, T_MED,  true)
+        NewTab(hNew), Status.Log("NewTab: ALL"),   PlayPlaylist(URL_ALL,   CNT_ALL,   T_LONG, true)
+        NewTab(hNew), Status.Log("NewTab: FIXED"), PlayFixed(FIXED,        T_SHORT)
+        NewTab(hNew), Status.Log("NewTab: GAMES"), PlayPlaylist(URL_GAMES, CNT_GAMES, T_MED,  true)
         ; Προαιρετικά:
-        ; NewTab(hNew), PlayPlaylist(URL_SHORTS, CNT_SHORTS, T_SHORT, false)
+        ; NewTab(hNew), Status.Log("NewTab: SHORTS"), PlayPlaylist(URL_SHORTS, CNT_SHORTS, T_SHORT, false)
 
         ; Κλείσε ΜΟΝΟ το νέο παράθυρο (όχι όλο τον Edge)
         WinClose("ahk_id " hNew)
         WinWaitClose("ahk_id " hNew, , 5)
-        Status.Update("Κύκλος ολοκληρώθηκε. Νέος κύκλος σε 1 s…")
+        Status.Set("Κύκλος ολοκληρώθηκε. Νέος κύκλος σε 1 s…"), Status.Log("Cycle done")
         Sleep(1000)
     }
 }
@@ -184,8 +306,8 @@ OpenEdgeNewWindow(profileArg) {
     ; Λίστα παραθύρων ΠΡΙΝ
     before := WinGetList(EDGE_WIN)
 
-    ; Εκτέλεση (δεν μας νοιάζει αν τρέχει άλλος Edge – ανοίγουμε ΝΕΟ)
-    try Run('"' EDGE_EXE '" ' profileArg)  ; π.χ. --profile-directory="Profile 3" --new-window
+    ; Εκτέλεση (ανοίγουμε ΝΕΟ παράθυρο, ανεξάρτητα αν τρέχει Edge)
+    try Run('"' EDGE_EXE '" ' profileArg)
     catch {
         return 0
     }
@@ -216,7 +338,7 @@ FindNewWindowHandle(beforeArr, afterArr) {
 
 ; === Άνοιγμα νέας καρτέλας στο ΣΥΓΚΕΚΡΙΜΕΝΟ παράθυρο ===
 NewTab(hWnd) {
-    Status.Update("Άνοιγμα νέας καρτέλας…")
+    Status.Set("Άνοιγμα νέας καρτέλας…")
     WinActivate("ahk_id " hWnd)
     WinWaitActive("ahk_id " hWnd, , 3)
     Send("^t")
@@ -224,7 +346,7 @@ NewTab(hWnd) {
 }
 
 GotoURL(url) {
-    Status.Update("Μετάβαση σε URL…")
+    Status.Set("Μετάβαση σε URL…"), Status.Log(url)
     Send("^l")
     Sleep(150)
     SendText(url)
@@ -238,16 +360,18 @@ WaitPlayable(timeoutSec := 10) {
 }
 
 PlayPlaylist(url, count, perItemSec, goNext := true) {
-    Status.Update("Φόρτωση playlist…")
+    Status.Set("Φόρτωση playlist…"), Status.Log("Playlist URL: " url)
     GotoURL(url)
     WaitPlayable(8)
-    Status.Update(Format("Playlist σε εξέλιξη ({} στοιχεία)…", count))
+    Status.Set(Format("Playlist σε εξέλιξη ({} στοιχεία)…", count)), Status.Log("Playlist begin (" count ")")
     loop count {
-        Status.Update(Format("Playlist: στοιχείο {}/{} — αναμονή {} s", A_Index, count, perItemSec))
+        Status.Set(Format("Playlist: στοιχείο {}/{} — αναμονή {} s", A_Index, count, perItemSec))
+        Status.Log(Format("Item {}/{} start", A_Index, count))
         TimerSleep(perItemSec)
         if goNext {
-            Status.Update("Μετάβαση στο επόμενο (Shift+N)…")
+            Status.Set("Μετάβαση στο επόμενο (Shift+N)…")
             SendShiftN()
+            Status.Log(Format("Item {}/{} next", A_Index, count))
         }
     }
 }
@@ -256,10 +380,12 @@ PlayFixed(arr, perItemSec) {
     idx := 0
     for , url in arr {
         idx++
-        Status.Update(Format("Fixed βίντεο {}/{} — φόρτωση…", idx, arr.Length))
+        Status.Set(Format("Fixed βίντεο {}/{} — φόρτωση…", idx, arr.Length))
+        Status.Log("Fixed URL: " url)
         GotoURL(url)
         WaitPlayable(5)
-        Status.Update(Format("Fixed {}/{} — αναμονή {} s", idx, arr.Length, perItemSec))
+        Status.Set(Format("Fixed {}/{} — αναμονή {} s", idx, arr.Length, perItemSec))
+        Status.Log(Format("Fixed {}/{} start", idx, arr.Length))
         TimerSleep(perItemSec)
     }
 }
