@@ -5,65 +5,98 @@
 ; -----------------------------------------------------------------------------
 ; DevTools HTTP helpers (polling /json & parsing targets)
 ; -----------------------------------------------------------------------------
-; Στόχος: Απομονωμένη και «ελαφριά» υλοποίηση για τον HTTP έλεγχο διαθεσιμότητας
-; του DevTools endpoint (http://127.0.0.1:PORT/json) και το parsing των targets.
-; Χρησιμοποιεί RegexLib για ασφαλή σύνθεση patterns/strings.
-;
-; Κανόνες που τηρούνται:
-; - AHK v2: Πλήρη try/catch blocks, χωρίς μονογραμμικά.
-; - Χωρίς τελεστές && / || (διαδοχικά if).
-; - Χωρίς ωμούς ειδικούς χαρακτήρες όπου γίνεται: αξιοποίηση RegexLib.Chars/Str.
+; Βελτιώσεις:
+; - Progressive backoff στα retries (250 → 400 → 600 → 800 ms …).
+; - Fallback client: αν αποτύχει WinHttpRequest, δοκιμάζουμε MSXML2.XMLHTTP.
 ; -----------------------------------------------------------------------------
 
 /**
  * DevTools_GetTargets
- * Κάνει polling στο http://127.0.0.1:PORT/json έως maxWaitMs (βήμα stepMs) και
- * επιστρέφει πίνακα με τα targets (κάθε target = Map με keys: id, title, url, type, webSocketDebuggerUrl).
- * 
+ * Κάνει polling στο http://127.0.0.1:PORT/json έως maxWaitMs και επιστρέφει targets.
+ *
  * @param {Integer} port       π.χ. 9222
- * @param {Integer} maxWaitMs  συνολικό timeout σε ms (default: 6000)
- * @param {Integer} stepMs     διάστημα μεταξύ προσπαθειών (default: 250)
+ * @param {Integer} maxWaitMs  συνολικό timeout σε ms (default: 12000 για σταθερότητα)
+ * @param {Integer} stepMs     αρχικό διάστημα μεταξύ προσπαθειών (default: 250)
  * @return {Array} targets     [] αν timeout/αποτυχία
  */
-DevTools_GetTargets(port, maxWaitMs := 6000, stepMs := 250) {
-  local tStart, elapsed, url, http, txt, targets, c
+DevTools_GetTargets(port, maxWaitMs := 12000, stepMs := 250) {
+  local tStart, elapsed, url, txt, targets, c
   c := RegexLib.Chars
-  ; Σύνθεση URL χωρίς ωμά escaping
   url := "http://127.0.0.1:" port c.SLASH "json"
 
   tStart := A_TickCount
   elapsed := 0
   targets := []
+  curStep := stepMs
 
   while (elapsed < maxWaitMs) {
-    try {
-      http := ComObject("WinHttp.WinHttpRequest.5.1")
-      http.Open("GET", url, false)
-      http.Send()
-      if (http.Status = 200) {
-        txt := http.ResponseText
-        targets := DevTools_ParseTargets(txt)
-        if (targets.Length > 0) {
-          return targets
-        }
+    ; 1) Προσπάθεια με WinHttpRequest
+    txt := DevTools_TryGetJson_WinHttp(url)
+    if (txt != "") {
+      targets := DevTools_ParseTargets(txt)
+      if (targets.Length > 0) {
+        return targets
       }
-    } catch Error as e {
-      ; WinHttp μπορεί να ρίξει 0x80072EFD ή άλλα σφάλματα μέχρι να «ζωντανέψει» το endpoint
-      ; Συνεχίζουμε τα retries σιωπηρά.
     }
-    Sleep(stepMs)
+
+    ; 2) Fallback με MSXML2.XMLHTTP (μερικά AV/Policies μπλοκάρουν WinHTTP)
+    txt := DevTools_TryGetJson_MSXML(url)
+    if (txt != "") {
+      targets := DevTools_ParseTargets(txt)
+      if (targets.Length > 0) {
+        return targets
+      }
+    }
+
+    ; Backoff: αυξάνουμε σταδιακά το διάστημα αναμονής
+    Sleep(curStep)
+    if (curStep < 800) {
+      curStep := curStep + 150   ; 250→400→550→700→850 (κόφτης παρακάτω)
+    }
+    if (curStep > 850) {
+      curStep := 850
+    }
     elapsed := A_TickCount - tStart
   }
   return targets
 }
 
+DevTools_TryGetJson_WinHttp(url) {
+  local txt
+  txt := ""
+  try {
+    http := ComObject("WinHttp.WinHttpRequest.5.1")
+    http.Open("GET", url, false)
+    http.Send()
+    if (http.Status = 200) {
+      txt := http.ResponseText
+    }
+  } catch Error as _eWinHttp {
+    ; σιωπηλά
+  }
+  return txt
+}
+
+DevTools_TryGetJson_MSXML(url) {
+  local txt
+  txt := ""
+  try {
+    xhr := ComObject("MSXML2.XMLHTTP")
+    xhr.open("GET", url, false)
+    xhr.send()
+    ; Σημείωση: Σε μερικές εκδόσεις, το readyState=4 + status=200
+    if (xhr.status = 200) {
+      txt := xhr.responseText
+    }
+  } catch Error as _eXhr {
+    ; σιωπηλά
+  }
+  return txt
+}
+
 /**
  * DevTools_ParseTargets
- * Best-effort parser: εντοπίζει ελάχιστα JSON αντικείμενα με RegexLib.Pat_JsonObjectMinimal()
- * και εξάγει βασικά πεδία μέσω RegexLib.Pat_JsonKeyQuotedString(key).
- * 
- * @param {String} txt   το κείμενο της απόκρισης /json
- * @return {Array}       targets (κάθε στοιχείο Map)
+ * Best-effort parser: εντοπίζει ελάχιστα JSON αντικείμενα και εξάγει βασικά πεδία.
  */
 DevTools_ParseTargets(txt) {
   local out, pos, m, objTxt, o, key, v, patObj
@@ -81,7 +114,6 @@ DevTools_ParseTargets(txt) {
       pos := m.Pos(0) + m.Len(0)
 
       o := Map()
-      ; Τα κλασικά πεδία του DevTools: "id", "title", "url", "type", "webSocketDebuggerUrl"
       for key in ["id", "title", "url", "type", "webSocketDebuggerUrl"] {
         v := DevTools_JsonExtractString(objTxt, key)
         if (v != "") {
@@ -92,20 +124,15 @@ DevTools_ParseTargets(txt) {
         out.Push(o)
       }
     }
-  } catch Error as e {
-    ; Σε αποτυχία regex parsing επιστρέφουμε ό,τι έχουμε (πιθανόν κενό).
+  } catch Error as _eParse {
+    ; σιωπηλά
   }
   return out
 }
 
 /**
  * DevTools_JsonExtractString
- * Επιστρέφει την τιμή string ενός συγκεκριμένου key από JSON-σαν κείμενο (best-effort).
- * Χρησιμοποιεί RegexLib.Pat_JsonKeyQuotedString(key) με captured group το value.
- * 
- * @param {String} src   JSON-σαν τμήμα κειμένου
- * @param {String} key   κλειδί π.χ. "id", "webSocketDebuggerUrl"
- * @return {String}      τιμή ή "" αν δεν βρεθεί
+ * Επιστρέφει την τιμή string ενός συγκεκριμένου key (best-effort).
  */
 DevTools_JsonExtractString(src, key) {
   local pat, mm
@@ -117,8 +144,8 @@ DevTools_JsonExtractString(src, key) {
     if RegExMatch(src, pat, &mm) {
       return mm[1]
     }
-  } catch Error as e {
-    ; σιωπηρά
+  } catch Error as _eKey {
+    ; σιωπηλά
   }
   return ""
 }

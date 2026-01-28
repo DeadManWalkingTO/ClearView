@@ -21,17 +21,17 @@ class CDP {
 
   ; -------- Public API --------
   ConnectToYouTubeTab() {
-    return this.ConnectToYouTubeTabWithRetry(6000)
+    return this.ConnectToYouTubeTabWithRetry(12000)  ; αυξημένο default timeout
   }
 
-  ConnectToYouTubeTabWithRetry(maxWaitMs := 6000) {
+  ConnectToYouTubeTabWithRetry(maxWaitMs := 12000) {
     local targets, yt, payload
     try {
       if (!Settings.CDP_ENABLED) {
         throw Error("CDP disabled")
       }
 
-      ; 1) HTTP polling στο /json
+      ; 1) HTTP polling στο /json (με backoff + fallback μέσα στο DevTools_GetTargets)
       targets := DevTools_GetTargets(this.port, maxWaitMs, 250)
       if (targets.Length = 0) {
         throw Error("CDP /json not reachable (timeout)")
@@ -116,7 +116,7 @@ class CDP {
         }
       }
     } catch Error as _e {
-      ; ignore
+      ; no-op
     } finally {
       this._connected := false
       this._ws := 0
@@ -139,6 +139,7 @@ class CDP {
           }
         }
       } catch Error as _e1 {
+        ; no-op
       }
     }
     for _, o in arr {
@@ -149,6 +150,7 @@ class CDP {
           }
         }
       } catch Error as _e2 {
+        ; no-op
       }
     }
     for _, o in arr {
@@ -157,6 +159,7 @@ class CDP {
           return o
         }
       } catch Error as _e3 {
+        ; no-op
       }
     }
     return Map()
@@ -200,6 +203,7 @@ class CDP {
         return mm[1]
       }
     } catch Error as _e {
+      ; no-op
     }
     return ""
   }
@@ -215,6 +219,7 @@ class CDP {
         return mm[1]
       }
     } catch Error as _e {
+      ; no-op
     }
     return ""
   }

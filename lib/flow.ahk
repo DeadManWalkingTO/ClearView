@@ -4,6 +4,7 @@
 #Include "regex.ahk"
 #Include "edge.ahk"
 #Include "cdp.ahk"
+#Include "cdp_diag.ahk"
 
 class FlowController {
   __New(log, edge, settings) {
@@ -117,10 +118,9 @@ class FlowController {
         ; no-op
       }
 
-      ; Σύνθεση arg με ασφαλή quotes (RegexLib.Str)
       profArg := "--profile-directory=" RegexLib.Str.Quote(Settings.EDGE_PROFILE_NAME)
 
-      ; ⚠️ ΔΙΟΡΘΩΣΗ: Ασφαλής quoted εμφάνιση ονόματος με RegexLib.Str.Quote(...)
+      ; Ασφαλής quoted εμφάνιση ονόματος με RegexLib.Str.Quote(...)
       quotedName := RegexLib.Str.Quote(Settings.EDGE_PROFILE_NAME)
       warnMsg := Format("Δεν βρέθηκε φάκελος προφίλ για {}. Θα δοκιμάσω με: {}", quotedName, profArg)
 
@@ -174,7 +174,6 @@ class FlowController {
     this.edge.StepDelay()
 
     try {
-      ; ⚠️ ΔΙΟΡΘΩΣΗ: Ασφαλής quoted εμφάνιση ονόματος με RegexLib.Str.Quote(...)
       quotedName := RegexLib.Str.Quote(Settings.EDGE_PROFILE_NAME)
       readyMsg := Format("Edge έτοιμο για χρήση ({}).", quotedName)
 
@@ -213,6 +212,13 @@ class FlowController {
     ; --- Πλοήγηση + σταθεροποίηση για Play ---
     this._navigateWithRandomId(hNew)
 
+    ; --- (Προαιρετικό) Διαγνωστικό πριν το CDP connect ---
+    try {
+      CDP_DiagProbe(Settings.CDP_PORT, this.log, 8000, 300)
+    } catch Error as _eProbe {
+      ; no-op
+    }
+
     ; --- Προαιρετικό CDP: υπολογισμός διάρκειας βίντεο ---
     local cdpInst := 0, dur := -1
     if (Settings.CDP_ENABLED) {
@@ -221,7 +227,7 @@ class FlowController {
         if (cdpInst.ConnectToYouTubeTab()) {
           dur := cdpInst.GetYouTubeDurationSeconds()
           if (dur >= 0) {
-            this.log.Write(Format("⏱️ Διάρκεια βίντεο (s): {}", dur))
+            this.log.Write(Format("⏱️ Διάρκεια βίντεo (s): {}", dur))
           } else {
             this.log.Write("⚠️ CDP: δεν βρέθηκε διάρκεια (ytp-time-duration)")
           }
