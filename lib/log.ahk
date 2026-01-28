@@ -28,7 +28,8 @@ class Logger {
     }
 
     ShowTimed(kind, text, title, iconOpt := "Iconi") {
-        this.Write(Format("ℹ️ Popup: { } (T={ }s)", kind, Settings.POPUP_T))
+        ; Σωστά placeholders "{}" για το Format()
+        this.Write(Format("ℹ️ Popup: {} (T={}s)", kind, Settings.POPUP_T))
         MsgBox(text, title, iconOpt " T" Settings.POPUP_T)
     }
 
