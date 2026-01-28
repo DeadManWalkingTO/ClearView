@@ -7,7 +7,7 @@ SetWorkingDir(A_ScriptDir)
 
 ; ===== Μεταδεδομένα εφαρμογής =====
 APP_TITLE   := "BH Automation — Edge/Chryseis"
-APP_VERSION := "v1.0.9"          ; bump: log suffix (T=3s) for all timed popups
+APP_VERSION := "v1.0.11"         ; bump: Title Case logs (single-line, newest-first), no "[Log]" prefix
 
 ; ===== Ρυθμίσεις / Επιλογές =====
 EDGE_WIN     := "ahk_exe msedge.exe"
@@ -61,8 +61,8 @@ btnClear.OnEvent("Click", (*) => OnClearLogs())
 
 ; Εμφάνιση GUI
 App.Show("w900 h560 Center")
-; Αρχικές γραμμές στο log (με ώρα, μονοσειριακά)
-Log("[Log] " APP_TITLE " — " APP_VERSION)
+; Αρχικές γραμμές στο log (με ώρα, μονοσειριακά, χωρίς "[Log]" prefix)
+Log(APP_TITLE " — " APP_VERSION)
 Log("Εφαρμογή ξεκίνησε (clean). " APP_TITLE " — " APP_VERSION)
 
 ; ===== GUI Helpers =====
@@ -90,18 +90,40 @@ SetHeadline(text) {
     txtHead.Value := text "  —  " APP_VERSION
 }
 
-; ===== Reverse-chronological Log (νεότερα επάνω) — ΜΟΝΟσειριακή καταγραφή =====
-Log(text) {
-    global txtLog
-    ; Sanitization: αφαίρεση CR/LF/Tab, συμπύκνωση κενών -> μονοσειριακό
+; ===== Utilities: Title Case & Log =====
+; Μετατρέπει κείμενο σε Title Case, κρατώντας κενά ανάμεσα στις λέξεις:
+; 1) Normalize: αφαιρεί CR/LF/Tab -> space, συμπυκνώνει κενά.
+; 2) Κάνει Capitalize την πρώτη λεκτική μονάδα και την αφήνει με τα υπόλοιπα γράμματα όπως είναι,
+;    εκτός αν θέλεις αυστηρό lower στην ουρά — εδώ κρατάμε τα πεζά/κεφαλαία του χρήστη εκτός από τον 1ο χαρακτήρα.
+ToTitleCase(text) {
+    ; Βήμα 1: normalize spaces
     t := StrReplace(text, "`r", " ")
     t := StrReplace(t,    "`n", " ")
     t := StrReplace(t,    "`t", " ")
-    t := RegExReplace(t,  "\s+", " ")  ; συμπύκνωση πολλών κενών
+    t := RegExReplace(t,  "\s+", " ")
     t := Trim(t)
 
+    ; Βήμα 2: split by spaces, capitalize first letter per token
+    parts := StrSplit(t, " ")
+    outParts := []
+    for _, p in parts {
+        if (p = "")
+            continue
+        first := SubStr(p, 1, 1)
+        rest  := SubStr(p, 2)
+        outParts.Push(StrUpper(first) rest)
+    }
+    return StrJoin(outParts, " ")
+}
+
+; Reverse-chronological Log (νεότερα επάνω) — ΜΟΝΟσειριακό & Title Case
+Log(text) {
+    global txtLog
+    ; Title Case μετατροπή
+    tc := ToTitleCase(text)
+
     ts := FormatTime(A_Now, "HH:mm:ss")
-    newLine := "[" ts "] " t
+    newLine := "[" ts "] " tc
 
     cur := txtLog.Value
     if (cur != "")
@@ -116,11 +138,14 @@ Log(text) {
 }
 
 ; Βοηθητικό: εμφάνιση timed popup ΚΑΙ καταγραφή με suffix (T=Xs)
+; Το log περνά από Title Case (και κρατάμε επίθεμα "(T=3s)" όπως ζητήθηκε).
 ShowTimedMsg(kind, text, title, icon := "Iconi") {
     global POPUP_T
-    ; Εμβόλιμη καταγραφή: "Popup(<kind>): <text> (T=3s)"
-    Log(Format("Popup({}): {} (T={}s)", kind, text, POPUP_T))
-    ; Προετοιμασία options: Icon… T<sec>
+    ; Καταγραφή: "Popup(Kind): <Text> (T=3s)" -> θα μετατραπεί σε Title Case από την Log()
+    logText := Format("Popup({}): {} (T={}s)", kind, text, POPUP_T)
+    Log(logText)
+
+    ; Κανονικό μήνυμα στον χρήστη (χωρίς Title Case για αναγνωσιμότητα)
     opt := icon " T" POPUP_T
     MsgBox(text, title, opt)
 }
@@ -240,7 +265,6 @@ RunFlow() {
         Log("Profile dir NOT found; try as-is (using display name as folder)")
         profArg := '--profile-directory="' EDGE_PROFILE_NAME '"'
         warnMsg := Format('Δεν βρέθηκε φάκελος προφίλ για "{}". Θα δοκιμάσω με: {}', EDGE_PROFILE_NAME, profArg)
-        ; Προειδοποιητικό popup με T=3s
         ShowTimedMsg("ProfileWarn", warnMsg, "BH Automation — Προειδοποίηση", "Icon!")
     } else {
         SetHeadline("Βρέθηκε: " profDir), Log("Profile dir: " profDir)
@@ -292,7 +316,6 @@ CheckAbortOrPause() {
 }
 
 ; ===== Βοηθητικές: Profile Resolve =====
-; Προσπαθεί πρώτα από το "Local State" (profile.info_cache), μετά fallback διασχίζοντας "Preferences" ανά προφίλ.
 ResolveEdgeProfileDirByName(displayName) {
     base := EnvGet("LOCALAPPDATA") "\Microsoft\Edge\User Data\"
     if !DirExist_(base)
