@@ -7,7 +7,7 @@ SetWorkingDir(A_ScriptDir)
 
 ; ===== Μεταδεδομένα εφαρμογής =====
 APP_TITLE   := "BH Automation — Edge/Chryseis"
-APP_VERSION := "v1.0.12"         ; bump: replace StrJoin with JoinTokens() to avoid #Warn
+APP_VERSION := "v1.0.13"         ; bump: formatting fixes (Keep/New Tab/Popup spacing/Open Edge New Window, no "(clean)")
 
 ; ===== Ρυθμίσεις / Επιλογές =====
 EDGE_WIN     := "ahk_exe msedge.exe"
@@ -61,9 +61,9 @@ btnClear.OnEvent("Click", (*) => OnClearLogs())
 
 ; Εμφάνιση GUI
 App.Show("w900 h560 Center")
-; Αρχικές γραμμές στο log (με ώρα, μονοσειριακά, χωρίς "[Log]" prefix)
+; Αρχικές γραμμές στο log (με ώρα, μονοσειριακά, χωρίς "[Log]" prefix & χωρίς "(clean)")
 Log(APP_TITLE " — " APP_VERSION)
-Log("Εφαρμογή ξεκίνησε (clean). " APP_TITLE " — " APP_VERSION)
+Log("Εφαρμογή ξεκίνησε. " APP_TITLE " — " APP_VERSION)
 
 ; ===== GUI Helpers =====
 GuiReflow() {
@@ -91,7 +91,7 @@ SetHeadline(text) {
 }
 
 ; ===== Utilities: Title Case & Log =====
-; JoinTokens: ασφαλής συνένωση λιστών (αντικαθιστά StrJoin για να μην εμφανίζεται #Warn)
+; JoinTokens: ασφαλής συνένωση λιστών
 JoinTokens(arr, sep := " ") {
     out := ""
     for i, v in arr {
@@ -104,14 +104,14 @@ JoinTokens(arr, sep := " ") {
 
 ; Μετατρέπει κείμενο σε Title Case, κρατώντας κενά ανάμεσα στις λέξεις (single-line normalization).
 ToTitleCase(text) {
-    ; Βήμα 1: normalize spaces
+    ; 1) normalize spaces
     t := StrReplace(text, "`r", " ")
     t := StrReplace(t,    "`n", " ")
     t := StrReplace(t,    "`t", " ")
     t := RegExReplace(t,  "\s+", " ")
     t := Trim(t)
 
-    ; Βήμα 2: split by spaces, capitalize first letter per token
+    ; 2) split by spaces, capitalize first letter per token
     parts := StrSplit(t, " ")
     outParts := []
     for _, p in parts {
@@ -127,9 +127,7 @@ ToTitleCase(text) {
 ; Reverse-chronological Log (νεότερα επάνω) — ΜΟΝΟσειριακό & Title Case
 Log(text) {
     global txtLog
-    ; Title Case μετατροπή
     tc := ToTitleCase(text)
-
     ts := FormatTime(A_Now, "HH:mm:ss")
     newLine := "[" ts "] " tc
 
@@ -146,14 +144,12 @@ Log(text) {
 }
 
 ; Βοηθητικό: εμφάνιση timed popup ΚΑΙ καταγραφή με suffix (T=Xs)
-; Το log περνά από Title Case (και κρατάμε επίθεμα "(T=3s)" όπως ζητήθηκε).
+; Το log περνά από Title Case (κρατάμε επίθεμα "(T=3s)").
 ShowTimedMsg(kind, text, title, icon := "Iconi") {
     global POPUP_T
-    ; Καταγραφή: "Popup(Kind): <Text> (T=3s)" -> θα μετατραπεί σε Title Case από την Log()
-    logText := Format("Popup({}): {} (T={}s)", kind, text, POPUP_T)
+    ; ΖΗΤΗΘΗΚΑΝ κενά πριν την παρένθεση: "Popup (Kind): ..."
+    logText := Format("Popup ({0}): {1} (T={2}s)", kind, text, POPUP_T)
     Log(logText)
-
-    ; Κανονικό μήνυμα στον χρήστη (χωρίς Title Case για αναγνωσιμότητα)
     opt := icon " T" POPUP_T
     MsgBox(text, title, opt)
 }
@@ -208,8 +204,8 @@ OnStart() {
     gPaused := false
     gStopRequested := false
 
-    ; Start popup + log (T=3s)
-    msg := Format("Ξεκινάει η ροή αυτοματισμού — Έκδοση: {}", APP_VERSION)
+    ; Start popup + log (T=3s) — με κενό πριν την παρένθεση
+    msg := Format("Ξεκινάει Η Ροή Αυτοματισμού — Έκδοση: {}", APP_VERSION)
     ShowTimedMsg("Start", msg, "BH Automation — Start", "Iconi")
 
     SetHeadline("Εκκίνηση ροής…"), Log("Start pressed — " APP_VERSION)
@@ -282,10 +278,11 @@ RunFlow() {
 
     ; 2) Άνοιξε ΝΕΟ παράθυρο Edge στο προφίλ
     CheckAbortOrPause()
-    SetHeadline("Άνοιγμα νέου παραθύρου Edge…"), Log("OpenEdgeNewWindow: " profArg)
+    ; ΖΗΤΗΘΗΚΕ κενό στις λέξεις: "Open Edge New Window"
+    SetHeadline("Άνοιγμα νέου παραθύρου Edge…"), Log("Open Edge New Window: " profArg)
     hNew := OpenEdgeNewWindow(profArg)
     if (!hNew) {
-        SetHeadline("❌ Αποτυχία ανοίγματος Edge."), Log("OpenEdgeNewWindow failed")
+        SetHeadline("❌ Αποτυχία ανοίγματος Edge."), Log("Open Edge New Window Failed")
         return
     }
     WinActivate("ahk_id " hNew)
@@ -294,8 +291,8 @@ RunFlow() {
     Sleep(200)
     SetHeadline("Edge έτοιμος (" EDGE_PROFILE_NAME ")"), Log("Edge ready")
 
-    ; Edge-ready popup (T=3s)
-    readyMsg := Format('Edge ready ("{}").', EDGE_PROFILE_NAME)
+    ; Edge-ready popup (T=3s) — με κενό πριν την παρένθεση
+    readyMsg := Format('Edge Ready ("{}").', EDGE_PROFILE_NAME)
     ShowTimedMsg("EdgeReady", readyMsg, "BH Automation — Edge", "Iconi")
 
     ; 3) --- PLACE YOUR TASKS HERE ---
@@ -308,8 +305,9 @@ RunFlow() {
         WinWaitClose("ahk_id " hNew, , 5)
         SetHeadline("Κύκλος ολοκληρώθηκε."), Log("Cycle done")
     } else {
+        ; ΖΗΤΗΘΗΚΕ κεφαλαίο K στο Keep
         SetHeadline("Κύκλος ολοκληρώθηκε (Edge παραμένει ανοιχτός).")
-        Log("Cycle done (keep window open)")
+        Log("Cycle done (Keep window open)")
     }
 }
 
@@ -414,7 +412,8 @@ FindNewWindowHandle(beforeArr, afterArr) {
 }
 
 OpenNewTab(hWnd) {
-    SetHeadline("Άνοιγμα νέας καρτέλας…"), Log("NewTab (blank)")
+    ; ΖΗΤΗΘΗΚΑΝ "New Tab (Blank)" — κενό και B κεφαλαίο
+    SetHeadline("Άνοιγμα νέας καρτέλας…"), Log("New Tab (Blank)")
     WinActivate("ahk_id " hWnd)
     WinWaitActive("ahk_id " hWnd, , 3)
     Send("^t")
