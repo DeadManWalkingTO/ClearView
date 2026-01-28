@@ -1,4 +1,4 @@
-﻿; ==================== lib/regex.ahk ====================
+; ==================== lib/regex.ahk ====================
 #Requires AutoHotkey v2.0
 
 ; Βιβλιοθήκη βοηθητικών regex για όλο το project.
@@ -14,7 +14,7 @@ class RegexLib {
     ; Εξαγωγή φακέλου προφίλ από το "Local State" (πεδίο profile.info_cache)
     ; Επιστρέφει: dir (π.χ. "Profile 3" ή "Default") ή "" αν δεν βρεθεί.
     static FindProfileDirInLocalState(localStateText, displayName) {
-        if (localStateText = "")
+        if (localStateText == "")
             return ""
         ; Εντοπισμός του block "info_cache"
         pat := '"profile"\s*:\s*\{\s*"info_cache"\s*:\s*\{([\s\S]*?)\}\s*\}'
@@ -25,7 +25,7 @@ class RegexLib {
         ; Αναζήτηση αντικειμένων: "dir": { ..."name": "nm"... }
         while RegExMatch(cache, '"([^"]+)"\s*:\s*\{[^\}]*"name"\s*:\s*"([^"]+)"', &mm, pos) {
             dir := mm[1], nm := mm[2]
-            if (nm = displayName)
+            if (nm == displayName)
                 return dir
             pos := mm.Pos(0) + mm.Len(0)
         }
@@ -35,10 +35,9 @@ class RegexLib {
     ; Έλεγχος αν το Preferences ενός profile περιέχει το εμφανιζόμενο όνομα displayName
     ; Επιστρέφει: true/false
     static PreferencesContainsProfileName(prefsText, displayName) {
-        if (prefsText = "")
+        if (prefsText == "")
             return false
         escName := RegexLib.Escape(displayName)
-        ; Δύο εναλλακτικά μοτίβα από τον αρχικό κώδικα:
         ; 1) μέσα στο αντικείμενο "profile": {... "name": "displayName" ...}
         if RegExMatch(prefsText, '"profile"\s*:\s*\{[^\}]*"name"\s*:\s*"' escName '"')
             return true
