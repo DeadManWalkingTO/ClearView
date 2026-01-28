@@ -7,7 +7,7 @@ SetWorkingDir(A_ScriptDir)
 
 ; ===== Μεταδεδομένα εφαρμογής =====
 APP_TITLE   := "BH Automation — Edge/Chryseis"
-APP_VERSION := "v1.0.2"          ; <-- Ανανέωνε SemVer εδώ (τουλάχιστον patch) σε ΚΑΘΕ αλλαγή κώδικα
+APP_VERSION := "v1.0.4"          ; <-- Ανανέωνε SemVer εδώ (τουλάχιστον patch) σε ΚΑΘΕ αλλαγή κώδικα
 
 ; ===== Σταθερές / Ρυθμίσεις =====
 EDGE_WIN     := "ahk_exe msedge.exe"
@@ -80,6 +80,7 @@ Log(text) {
     cur .= "[" ts "] " text
     txtLog.Value := cur
     hwnd := txtLog.Hwnd
+    ; Scroll-to-bottom χωρίς να κλέβουμε focus από Edge
     DllCall("user32\SendMessage", "ptr", hwnd, "uint", 0xB1, "ptr", -1, "ptr", -1) ; EM_SETSEL
     DllCall("user32\SendMessage", "ptr", hwnd, "uint", 0xB7, "ptr", 0, "ptr", 0)   ; EM_SCROLLCARET
 }
@@ -89,6 +90,7 @@ Log(text) {
 ^+l::{
     txtLog.Value := ""
     SetHeadline("Log καθαρίστηκε.")
+    Log("Log cleared by user")
 }
 ^+s::{
     if !DirExist("logs")
@@ -107,21 +109,25 @@ ShowAbout() {
           . "Profile: " EDGE_PROFILE_NAME "`n"
           . "Edge path: " EDGE_EXE
           , "About", "Iconi")
+    Log(Format("About shown — {} {}", APP_TITLE, APP_VERSION))
 }
 
 ; ===== Χειριστές Κουμπιών =====
 OnStart() {
-    global gRunning, gPaused, gStopRequested
+    global gRunning, gPaused, gStopRequested, APP_VERSION
     if gRunning {
         SetHeadline("Ήδη εκτελείται.")
+        Log("Start pressed while already running — ignored")
         return
     }
     gRunning := true
     gPaused := false
     gStopRequested := false
 
-    ; --- Μήνυμα εκκίνησης με timeout 3s ---
-    MsgBox("Ξεκινάει η ροή αυτοματισμού.", "BH Automation — Start", "Iconi T3")
+    ; --- Μήνυμα εκκίνησης με timeout 3s + Log ---
+    msg := Format("Ξεκινάει η ροή αυτοματισμού.`nΈκδοση: {}", APP_VERSION)
+    Log("Popup(Start): " msg)
+    MsgBox(msg, "BH Automation — Start", "Iconi T3")
 
     SetHeadline("Εκκίνηση ροής…"), Log("Start pressed — " APP_VERSION)
 
@@ -129,6 +135,7 @@ OnStart() {
         RunFlow()
     } catch as e {
         Log("Σφάλμα: " e.Message)
+        SetHeadline("Σφάλμα: " e.Message)
     }
 
     gRunning := false
@@ -141,6 +148,7 @@ OnPauseResume() {
     global gRunning, gPaused, btnPause
     if !gRunning {
         SetHeadline("Δεν εκτελείται ροή.")
+        Log("Pause/Resume clicked while not running — ignored")
         return
     }
     gPaused := !gPaused
@@ -157,13 +165,14 @@ OnStop() {
     global gRunning, gStopRequested
     if !gRunning {
         SetHeadline("Δεν εκτελείται ροή.")
+        Log("Stop clicked while not running — ignored")
         return
     }
     gStopRequested := true
     SetHeadline("Τερματισμός…"), Log("Stop requested")
 }
 
-; ===== Κύρια Ροή (ΚΑΘΑΡΗ) =====
+; ===== Κύρια Ροή (CLEAN) =====
 RunFlow() {
     global EDGE_PROFILE_NAME
     ; 1) Βρες φάκελο προφίλ από display name
@@ -174,10 +183,10 @@ RunFlow() {
         Log("Profile dir NOT found; try as-is (using display name as folder)")
         profArg := '--profile-directory="' EDGE_PROFILE_NAME '"'
 
-        ; --- Προειδοποιητικό μήνυμα με timeout 3s ---
-        MsgBox("Δεν βρέθηκε φάκελος προφίλ για """ EDGE_PROFILE_NAME """." . "`n"
-             . "Θα δοκιμάσω με: " profArg
-             , "BH Automation — Προειδοποίηση", "Icon! T3")
+        ; --- Προειδοποιητικό μήνυμα με timeout 3s + Log ---
+        warnMsg := Format('Δεν βρέθηκε φάκελος προφίλ για "{}".`nΘα δοκιμάσω με: {}', EDGE_PROFILE_NAME, profArg)
+        Log("Popup(ProfileWarn): " warnMsg)
+        MsgBox(warnMsg, "BH Automation — Προειδοποίηση", "Icon! T3")
     } else {
         SetHeadline("Βρέθηκε: " profDir), Log("Profile dir: " profDir)
         profArg := '--profile-directory="' profDir '"'
@@ -198,8 +207,10 @@ RunFlow() {
     Sleep(200)
     SetHeadline("Edge έτοιμος (" EDGE_PROFILE_NAME ")"), Log("Edge ready")
 
-    ; --- Μήνυμα Edge ready με timeout 3s ---
-    MsgBox("Edge ready (" EDGE_PROFILE_NAME ").", "BH Automation — Edge", "Iconi T3")
+    ; --- Μήνυμα Edge ready με timeout 3s + Log ---
+    readyMsg := Format('Edge ready ("{}").', EDGE_PROFILE_NAME)
+    Log("Popup(EdgeReady): " readyMsg)
+    MsgBox(readyMsg, "BH Automation — Edge", "Iconi T3")
 
     ; 3) --- PLACE YOUR TASKS HERE ---
     ; Default: άνοιγμα μιας νέας κενής καρτέλας και τέλος
