@@ -7,7 +7,7 @@ SetWorkingDir(A_ScriptDir)
 
 ; ===== Μεταδεδομένα εφαρμογής =====
 APP_TITLE   := "BH Automation — Edge/Chryseis"
-APP_VERSION := "v1.0.14"         ; bump: popup label cleanup, stable (T=3s), remove title from initial log
+APP_VERSION := "v1.0.16"         ; bump: Markdown emoji icons after timestamp for all logs
 
 ; ===== Ρυθμίσεις / Επιλογές =====
 EDGE_WIN     := "ahk_exe msedge.exe"
@@ -16,7 +16,7 @@ EDGE_PROC    := "msedge.exe"
 EDGE_EXE     := "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
 EDGE_PROFILE_NAME := "Chryseis"
 
-; Αν ξέρεις ακριβώς τον φάκελο (π.χ. "Profile 3"), βάλε τιμή εδώ για να παρακαμφθεί η ανίχνευση:
+; (Προαιρετικά) Αν ξέρεις ακριβώς τον φάκελο (π.χ. "Profile 3"), βάλε τιμή εδώ για να παρακαμφθεί η ανίχνευση:
 PROFILE_DIR_FORCE := ""   ; π.χ. "Profile 3"  ("" = απενεργοποιημένο)
 
 ; Να παραμένει ανοιχτό το νέο παράθυρο Edge στο τέλος;
@@ -24,6 +24,11 @@ KEEP_EDGE_OPEN := true
 
 ; Καθολικό timeout για ενημερωτικά popups (σε δευτ.)
 POPUP_T := 3
+
+; ===== Επιλογές εικονιδίων Log =====
+; MD mode: αν true, χρησιμοποιεί Markdown emoji shortcodes (π.χ. :warning:, :sparkles:, :fast_forward:)
+; αν false, θα μπορούσαμε να επιστρέψουμε Unicode/ASCII—το κρατάμε ON για το αίτημά σου.
+LOG_MD_MODE := true
 
 ; ===== Κατάσταση Εκτέλεσης =====
 gRunning := false
@@ -61,7 +66,7 @@ btnClear.OnEvent("Click", (*) => OnClearLogs())
 
 ; Εμφάνιση GUI
 App.Show("w900 h560 Center")
-; Αρχικές γραμμές στο log (χωρίς τίτλο/έκδοση, μόνο μήνυμα)
+; Αρχική γραμμή στο log (χωρίς τίτλο/έκδοση, μόνο μήνυμα)
 Log("Εφαρμογή ξεκίνησε.")
 
 ; ===== GUI Helpers =====
@@ -100,16 +105,32 @@ JoinTokens(arr, sep := " ") {
     return out
 }
 
-; Μετατρέπει κείμενο σε Title Case, κρατώντας κενά ανάμεσα στις λέξεις (single-line normalization).
+; Single-line Title Case (με προστασία ειδικών tokens)
 ToTitleCase(text) {
-    ; 1) normalize spaces
+    ; Normalize spaces
     t := StrReplace(text, "`r", " ")
     t := StrReplace(t,    "`n", " ")
     t := StrReplace(t,    "`t", " ")
     t := RegExReplace(t,  "\s+", " ")
     t := Trim(t)
 
-    ; 2) split by spaces, capitalize first letter per token
+    ; Προστασία ειδικών tokens που δεν θέλουμε να αλλοιωθούν:
+    ; 1) Suffix "(T=3s)"
+    t := StrReplace(t, "(T=3s)", "__TIME_SUFFIX__")
+    ; 2) Markdown emoji shortcodes :token: (π.χ., :warning:, :sparkles:)
+    ;    Τα τυλίγουμε σε placeholders ώστε να μην γίνουν Title Case.
+    saved := Map()     ; placeholder -> original
+    idx := 0
+    pos := 1
+    while RegExMatch(t, ":\w+?:", &mm, pos) {
+        idx++
+        placeholder := "__MD_EMOJI_" idx "__"
+        saved[placeholder] := mm[0]
+        t := SubStr(t, 1, mm.Pos(0)-1) . placeholder . SubStr(t, mm.Pos(0)+mm.Len(0))
+        pos := InStr(t, placeholder) + StrLen(placeholder)
+    }
+
+    ; Title Case
     parts := StrSplit(t, " ")
     outParts := []
     for _, p in parts {
@@ -119,25 +140,58 @@ ToTitleCase(text) {
         rest  := SubStr(p, 2)
         outParts.Push(StrUpper(first) rest)
     }
-    return JoinTokens(outParts, " ")
-}
+    tc := JoinTokens(outParts, " ")
 
-; Reverse-chronological Log (νεότερα επάνω) — ΜΟΝΟσειριακό & Title Case
-Log(text) {
-    global txtLog
-    ; Προστασία: μην αλλοιώσεις το επίθεμα (T=3s) — αντικατέστησέ το προσωρινά με placeholder
-    ; για να μην γίνει Title Case πάνω στα γράμματα (π.χ. "T=3s" -> "T=3S").
-    t := text
-    t := StrReplace(t, "(T=3s)", "__TIME_SUFFIX__")
-
-    ; Title Case μετατροπή
-    tc := ToTitleCase(t)
-
-    ; Επαναφορά του suffix ακριβώς όπως ζητήθηκε
+    ; Επαναφορά placeholders
+    for placeholder, original in saved
+        tc := StrReplace(tc, placeholder, original)
     tc := StrReplace(tc, "__TIME_SUFFIX__", "(T=3s)")
 
+    return tc
+}
+
+; Επιλογή Markdown emoji shortcode ανά κατηγορία (εισαγωγή μετά την ώρα)
+GetLogIconMD(msgTitleCase) {
+    ; Σειρά ελέγχου: πιο συγκεκριμένα πρώτα
+    if InStr(msgTitleCase, "Popup:")                         ; ενημερωτικό popup
+        return ":information_source:"       ; ℹ️
+    if InStr(msgTitleCase, "Profile Warn") || InStr(msgTitleCase, "Warning")
+        return ":warning:"                  ; ⚠️
+    if InStr(msgTitleCase, "Open Edge New Window")
+        return ":fast_forward:"             ; >> 
+    if InStr(msgTitleCase, "New Tab")
+        return ":arrow_forward:"            ; >
+    if InStr(msgTitleCase, "Edge Ready")
+        return ":white_check_mark:"         ; ✅
+    if InStr(msgTitleCase, "Cycle Done")
+        return ":sparkles:"                 ; ✨
+    if InStr(msgTitleCase, "Paused")
+        return ":pause_button:"             ; ⏸️
+    if InStr(msgTitleCase, "Stop Requested")
+        return ":x:"                        ; ❌
+    if InStr(msgTitleCase, "Start Pressed") || InStr(msgTitleCase, "Resumed")
+        return ":arrow_right:"              ; ▶️
+    ; Προεπιλογή
+    return ":small_blue_diamond:"           ; 🔹
+}
+
+; Επιλογή εικονιδίου με βάση το LOG_MD_MODE (εδώ το MD είναι ενεργό)
+GetLogIcon(msgTitleCase) {
+    global LOG_MD_MODE
+    if LOG_MD_MODE
+        return GetLogIconMD(msgTitleCase)
+    ; αλλιώς θα μπορούσαμε να επιστρέψουμε Unicode/ASCII (δεν χρειάζεται τώρα)
+    return ">"
+}
+
+; Reverse-chronological Log (νεότερα επάνω), Title Case, single-line, με icon μετά την ώρα
+Log(text) {
+    global txtLog
+    tc := ToTitleCase(text)
+    icon := GetLogIcon(tc)
+
     ts := FormatTime(A_Now, "HH:mm:ss")
-    newLine := "[" ts "] " tc
+    newLine := "[" ts "] " icon " " tc
 
     cur := txtLog.Value
     if (cur != "")
@@ -151,20 +205,11 @@ Log(text) {
     DllCall("user32\SendMessage", "ptr", hwnd, "uint", 0xB7, "ptr", 0, "ptr", 0) ; EM_SCROLLCARET
 }
 
-; Βοηθητικό: εμφάνιση timed popup ΚΑΙ καταγραφή με suffix (T=Xs)
-; ΖΗΤΗΘΗΚΑΝ: 
-;   • να ΜΗΝ υπάρχει "({0})" μετά το "Popup", 
-;   • κενό μετά το "Popup", 
-;   • σταθερό "(T=3s)" στο τέλος.
+; Timed popup + log "(T=3s)" (με Markdown emoji icon στη γραμμή log)
+; Μορφή log: "Popup: <Kind> (T=3s)"
 ShowTimedMsg(kind, text, title, icon := "Iconi") {
     global POPUP_T
-    ; Μορφή log: "Popup: <Kind> (T=3s)" — είσοδος στο Log για Title Case, αλλά το "(T=3s)" προστατεύεται.
-    logText := Format("Popup: {} (T={}s)", kind, POPUP_T)
-    ; Αν θέλουμε να προσθέτουμε και περίληψη του κειμένου, βάλε π.χ.:  "Popup: {} — {} (T={}s)"
-    ; logText := Format("Popup: {} — {} (T={}s)", kind, text, POPUP_T)
-    Log(logText)
-
-    ; Κανονικό μήνυμα στον χρήστη
+    Log(Format("Popup: {} (T={}s)", kind, POPUP_T))
     opt := icon " T" POPUP_T
     MsgBox(text, title, opt)
 }
@@ -293,7 +338,7 @@ RunFlow() {
 
     ; 2) Άνοιξε ΝΕΟ παράθυρο Edge στο προφίλ
     CheckAbortOrPause()
-    Log("Open Edge New Window: " profArg)   ; κενά ανάμεσα στις λέξεις
+    Log("Open Edge New Window: " profArg)
     hNew := OpenEdgeNewWindow(profArg)
     if (!hNew) {
         SetHeadline("❌ Αποτυχία ανοίγματος Edge."), Log("Open Edge New Window Failed")
@@ -324,7 +369,7 @@ RunFlow() {
         SetHeadline("Κύκλος ολοκληρώθηκε."), Log("Cycle done")
     } else {
         SetHeadline("Κύκλος ολοκληρώθηκε (Edge παραμένει ανοιχτός).")
-        Log("Cycle done (Keep window open)")   ; Keep με Κ κεφαλαίο
+        Log("Cycle done (Keep window open)")
     }
 }
 
@@ -427,8 +472,4 @@ FindNewWindowHandle(beforeArr, afterArr) {
     }
     return 0
 }
-
-; ===== Helpers =====
-DirExist_(path) => InStr(FileExist(path), "D") > 0
-RegexEscape(str) => RegExReplace(str, "([\\.^$*+?()\\[\\]{}|])", "\\$1")
 ; ==================== End Of File ====================
