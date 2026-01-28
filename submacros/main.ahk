@@ -14,19 +14,23 @@ SetWorkingDir(A_ScriptDir)
 ; --- GUI ---
 AppTitle := Settings.APP_TITLE " — " Settings.APP_VERSION
 try {
-  App := Gui("+AlwaysOnTop +Resize", AppTitle)
+  ; FIXED: no resize + no maximize button
+  App := Gui("+AlwaysOnTop -Resize -MaximizeBox", AppTitle)
   App.SetFont("s10", "Segoe UI")
 
-  ; ΝΕΟ: min-size window από Settings
-  minW := Settings.GUI_MIN_W + 0
-  minH := Settings.GUI_MIN_H + 0
-  if (minW < 200) {
-    minW := 200
+  ; FIXED SIZE from Settings: set BOTH MinSize and MaxSize to same values
+  guiW := Settings.GUI_MIN_W + 0
+  guiH := Settings.GUI_MIN_H + 0
+
+  if (guiW < 200) {
+    guiW := 200
   }
-  if (minH < 200) {
-    minH := 200
+  if (guiH < 200) {
+    guiH := 200
   }
-  App.Opt("+MinSize" minW "x" minH)
+
+  App.Opt("+MinSize" guiW "x" guiH)
+  App.Opt("+MaxSize" guiW "x" guiH)
 } catch Error as _eGui {
   MsgBox("Αποτυχία δημιουργίας GUI.", "Σφάλμα", "Iconx")
   ExitApp
@@ -48,10 +52,10 @@ try {
   txtLog := App.Add("Edit", "xm y+6 w860 h360 ReadOnly Multi -Wrap +VScroll", "")
   helpLine := App.Add("Text", "xm y+6 cGray", "Η εύρεση διάρκειας έχει αφαιρεθεί πλήρως.")
 
-  ; ΝΕΟ: αρχικό μέγεθος από Settings (ίδιο με min-size)
+  ; FIXED: show exactly fixed size from Settings
   App.Show("w" Settings.GUI_MIN_W " h" Settings.GUI_MIN_H)
 
-  ; Καλό: εφαρμόζουμε reflow αμέσως μετά το Show
+  ; Apply layout once (no resize afterwards)
   GuiReflow()
 } catch Error as _eGui2 {
   MsgBox("Αποτυχία σύνθεσης στοιχείων GUI.", "Σφάλμα", "Iconx")
@@ -81,6 +85,7 @@ GetMonitorIndexForWindow() {
   } catch Error as _ePos {
     return MonitorGetPrimary()
   }
+
   winCenterX := winX + Floor(W / 2)
   winCenterY := winY + Floor(H / 2)
 
@@ -117,21 +122,16 @@ GetMonitorIndexForWindow() {
 PositionBottomRight(margin := 10) {
   global App, _currentMonitorIdx, _movingProgrammatically
   try {
-    ; Επιλογή τρέχοντος monitor (ή primary)
     monIdx := GetMonitorIndexForWindow()
     _currentMonitorIdx := monIdx
 
-    ; Work area του monitor (λαμβάνει υπόψη taskbar)
     MonitorGetWorkArea(monIdx, &waL, &waT, &waR, &waB)
 
-    ; Τρέχον μέγεθος GUI
     App.GetPos(, , &W, &H)
 
-    ; Υπολογισμός συντεταγμένων
     x := waR - W - margin
     y := waB - H - margin
 
-    ; Μετακίνηση (με καταστολή WM_MOVE recursion)
     _movingProgrammatically := true
     App.Move(x, y)
     Sleep(25)
@@ -141,22 +141,9 @@ PositionBottomRight(margin := 10) {
   }
 }
 
-OnAppSize(*) {
-  global _br_margin, _movingProgrammatically
-  try {
-    ; κάτω-δεξιά μετά από resize
-    PositionBottomRight(_br_margin)
-    ; και reflow, ώστε να προσαρμόζονται τα controls
-    GuiReflow()
-  } catch Error as _eSize {
-    ; no-op
-  }
-}
-
 WM_DISPLAYCHANGE_Handler(wParam, lParam, msg, hwnd) {
   global _br_margin
   try {
-    ; Κάθε αλλαγή διάταξης/ανάλυσης → επανατοποθέτηση
     PositionBottomRight(_br_margin)
   } catch Error as _eDisp {
     ; no-op
@@ -164,10 +151,7 @@ WM_DISPLAYCHANGE_Handler(wParam, lParam, msg, hwnd) {
 }
 
 WM_MOVE_Handler(wParam, lParam, msg, hwnd) {
-  ; Αναλύει monitor-index αλλαγές κατά τη μετακίνηση και επανατοποθετεί κάτω-δεξιά
   global _br_margin, _currentMonitorIdx, _movingProgrammatically
-
-  ; Αν το κινούμε εμείς, αγνόησε (αποφυγή recursion)
   if (_movingProgrammatically) {
     return
   }
@@ -178,19 +162,13 @@ WM_MOVE_Handler(wParam, lParam, msg, hwnd) {
     newIdx := _currentMonitorIdx
   }
 
-  ; Μόνο αν άλλαξε monitor-index, επανατοποθέτησε
   if (newIdx != _currentMonitorIdx) {
     _currentMonitorIdx := newIdx
     PositionBottomRight(_br_margin)
   }
 }
 
-; Wire: Size + DisplayChange + Move
-try {
-  App.OnEvent("Size", OnAppSize)
-} catch Error as _eSizeWire {
-  ; no-op
-}
+; Wire: DisplayChange + Move (Size event removed because GUI is fixed-size)
 OnMessage(0x007E, WM_DISPLAYCHANGE_Handler) ; WM_DISPLAYCHANGE
 OnMessage(0x0003, WM_MOVE_Handler)          ; WM_MOVE
 
@@ -359,11 +337,9 @@ GuiReflow() {
     ; Log κάτω από headline (και πάνω από helpLine)
     topLog := headY + 24 + 6
     bottomGap := 6
-    minLogH := 80
-
     logH := (helpY - bottomGap) - topLog
-    if (logH < minLogH) {
-      logH := minLogH
+    if (logH < 0) {
+      logH := 0
     }
     txtLog.Move(lMargin, topLog, W - lMargin - rMargin, logH)
   } catch Error as _eReflow {
