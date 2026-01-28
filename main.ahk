@@ -6,8 +6,8 @@ SetTitleMatchMode(2)
 SetWorkingDir(A_ScriptDir)
 
 ; ===== Μεταδεδομένα εφαρμογής =====
-APP_TITLE   := "YT Automation — Edge/Chryseis (CLEAN)"
-APP_VERSION := "v1.0.0"          ; <-- Ανανέωνε SemVer εδώ
+APP_TITLE   := "BH Automation — Edge/Chryseis"
+APP_VERSION := "v1.0.1"          ; <-- Ανανέωνε SemVer εδώ (τουλάχιστον patch) σε ΚΑΘΕ αλλαγή κώδικα
 
 ; ===== Σταθερές / Ρυθμίσεις =====
 EDGE_WIN     := "ahk_exe msedge.exe"
