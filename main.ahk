@@ -7,7 +7,7 @@ SetWorkingDir(A_ScriptDir)
 
 ; ===== Μεταδεδομένα εφαρμογής =====
 APP_TITLE   := "BH Automation — Edge/Chryseis"
-APP_VERSION := "v1.0.4"          ; <-- Ανανέωνε SemVer εδώ (τουλάχιστον patch) σε ΚΑΘΕ αλλαγή κώδικα
+APP_VERSION := "v1.0.5"          ; <-- bump έκδοσης: reverse-order log στο panel
 
 ; ===== Σταθερές / Ρυθμίσεις =====
 EDGE_WIN     := "ahk_exe msedge.exe"
@@ -32,6 +32,7 @@ btnStop  := App.Add("Button", "x+8 yp w90 h28",  "Stop")
 
 ; Headline & Log
 txtHead := App.Add("Text", "xm y+10 w760 h24 cBlue", "Έτοιμο. " APP_VERSION)
+; Σημ.: το log θα κρατά ΝΕΟΤΕΡΑ επάνω — γι' αυτό το αρχικό μήνυμα θα καταλήξει στο κάτω μέρος αφού γραφτούν νεότερα.
 txtLog  := App.Add("Edit", "xm y+6 w760 h360 ReadOnly Multi -Wrap +VScroll"
                   , "[Log] " APP_TITLE " — " APP_VERSION)
 
@@ -71,18 +72,25 @@ SetHeadline(text) {
     txtHead.Value := text "  —  " APP_VERSION
 }
 
+; ===== Reverse-chronological Log (νεότερα επάνω) =====
 Log(text) {
     global txtLog
     ts := FormatTime(A_Now, "HH:mm:ss")
+    newLine := "[" ts "] " text
+
+    ; Προσθήκη στην ΑΡΧΗ του Edit ώστε τα νεότερα να είναι επάνω
     cur := txtLog.Value
     if (cur != "")
-        cur .= "`r`n"
-    cur .= "[" ts "] " text
-    txtLog.Value := cur
+        txtLog.Value := newLine "`r`n" cur
+    else
+        txtLog.Value := newLine
+
+    ; Scroll-to-TOP (caret στην αρχή) χωρίς να κλέβουμε focus από Edge
     hwnd := txtLog.Hwnd
-    ; Scroll-to-bottom χωρίς να κλέβουμε focus από Edge
-    DllCall("user32\SendMessage", "ptr", hwnd, "uint", 0xB1, "ptr", -1, "ptr", -1) ; EM_SETSEL
-    DllCall("user32\SendMessage", "ptr", hwnd, "uint", 0xB7, "ptr", 0, "ptr", 0)   ; EM_SCROLLCARET
+    ; EM_SETSEL (0xB1) με 0,0 -> caret στην αρχή
+    DllCall("user32\SendMessage", "ptr", hwnd, "uint", 0xB1, "ptr", 0, "ptr", 0)
+    ; EM_SCROLLCARET (0xB7)
+    DllCall("user32\SendMessage", "ptr", hwnd, "uint", 0xB7, "ptr", 0, "ptr", 0)
 }
 
 ; Hotkeys για Log/Info μέσα στο παράθυρο της app
