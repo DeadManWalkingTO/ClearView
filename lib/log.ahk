@@ -14,7 +14,7 @@ class Logger {
     }
 
     Write(text) {
-        ; Καμία αλλοίωση κειμένου: γράφουμε ακριβώς το input
+        ; Χωρίς αλλοίωση κειμένου: καταγράφουμε ακριβώς ό,τι δόθηκε
         ts := FormatTime(A_Now, "HH:mm:ss")
         line := "[" ts "] " text
         cur := this.txtLog.Value
@@ -26,7 +26,6 @@ class Logger {
     }
 
     ShowTimed(kind, text, title, iconOpt := "Iconi") {
-        ; Σωστά placeholders "{}" για το Format()
         this.Write(Format("ℹ️ Popup: {} (T={}s)", kind, Settings.POPUP_T))
         MsgBox(text, title, iconOpt " T" Settings.POPUP_T)
     }
@@ -36,14 +35,13 @@ class Logger {
     }
 
     ; --- ΝΕΟ: Καθυστέρηση με logging ---
-    ; Χρήση: logInst.SleepWithLog(Settings.STEP_DELAY_MS, "Μετά την πλοήγηση")
+    ; Παράδειγμα: logInst.SleepWithLog(Settings.STEP_DELAY_MS, "μετά την πλοήγηση")
     SleepWithLog(ms, label := "") {
         try {
             d := ms + 0
             if (d <= 0) {
                 return
             }
-            ; Μήνυμα προς το Log
             if (label != "") {
                 this.Write(Format("⏳ Καθυστέρηση {} ms — {}", d, label))
             } else {
@@ -51,8 +49,20 @@ class Logger {
             }
             Sleep(d)
         } catch Error as e {
-            ; Αν κάτι πάει στραβά, απλώς μην εμποδίσεις τη ροή
             this.Write(Format("⚠️ Αδυναμία καθυστέρησης: {} ({}:{})", e.Message, e.File, e.Line))
+        }
+    }
+
+    ; --- Προαιρετικό helper: ασφαλές logging εξαιρέσεων ---
+    SafeErrorLog(prefix, e) {
+        try {
+            what := (IsSet(e.What) && e.What != "" ? e.What : "n/a")
+            file := (IsSet(e.File) && e.File != "" ? e.File : "n/a")
+            line := (IsSet(e.Line) && e.Line != "" ? e.Line : "n/a")
+            msg := (IsSet(e.Message) && e.Message != "" ? e.Message : "Unknown error")
+            this.Write(Format("{} {} — What={}, File={}, Line={}", prefix, msg, what, file, line))
+        } catch {
+            this.Write(prefix " (error while logging exception)")
         }
     }
 }

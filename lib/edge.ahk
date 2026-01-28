@@ -15,6 +15,8 @@ class EdgeService {
         base := EnvGet("LOCALAPPDATA") "\Microsoft\Edge\User Data\"
         if (!this._dirExist(base))
             return ""
+
+        ; 1) Από "Local State"
         localState := base "Local State"
         if FileExist(localState) {
             txt := ""
@@ -27,6 +29,8 @@ class EdgeService {
             if (dirFromLocal != "")
                 return dirFromLocal
         }
+
+        ; 2) Fallback: Default + Profile N / Preferences
         candidates := ["Default"]
         Loop Files, base "*", "D" {
             d := A_LoopFileName
@@ -52,15 +56,7 @@ class EdgeService {
     }
 
     OpenNewWindow(profileArg) {
-        ; --- CDP flag όταν είναι ενεργό ---
-        try {
-            if (Settings.CDP_ENABLED) {
-                profileArg .= " --remote-debugging-port=" Settings.CDP_PORT
-            }
-        } catch Error as e {
-            ; ignore
-        }
-
+        ; (ΠΡΟΣΟΧΗ) Δεν προσθέτουμε εδώ CDP flag — μπαίνει από τη ροή.
         before := WinGetList(this.sel)
         try {
             Run('"' this.exe '" ' profileArg)

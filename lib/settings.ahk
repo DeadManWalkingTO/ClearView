@@ -17,8 +17,8 @@ class Settings {
     static PROFILE_DIR_FORCE := ""
 
     ; ------- Χρονισμοί / Καθυστερήσεις -------
-    static EDGE_STEP_DELAY_MS := 1500     ; μικρά βήματα (υπήρχε ήδη)
-    static STEP_DELAY_MS := 5000          ; ΝΕΟ: “μεγάλο” step delay (5s)
+    static EDGE_STEP_DELAY_MS := 1500    ; μικρά βήματα για UI/Edge
+    static STEP_DELAY_MS := 5000    ; μεγάλο βήμα (5s) για σταθεροποίηση DOM/Player
 
     ; ------- Paths δεδομένων -------
     static DATA_LIST_TXT := "..\data\list.txt"
@@ -27,7 +27,7 @@ class Settings {
     ; ------- Πιθανότητα επιλογής list1 (0–100) -------
     static LIST1_PROB_PCT := 50
 
-    ; ------- ΜΟΝΗ επιλογή για κλείσιμο άλλων παραθύρων -------
+    ; ------- Κλείσιμο άλλων παραθύρων -------
     static CLOSE_ALL_OTHER_WINDOWS := false
 
     ; ------- CDP / Remote Debugging -------
