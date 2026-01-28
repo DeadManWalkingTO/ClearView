@@ -11,7 +11,7 @@ SetWorkingDir(A_ScriptDir)
 #Include ..\lib\edge.ahk
 #Include ..\lib\flow.ahk
 #Include ..\lib\log.ahk
-#Include ..\lib\cdp_webview.ahk  ; ✅ Νέο port-less CDP
+; ❌ Αφαιρέθηκε: #Include ..\lib\cdp_webview.ahk
 
 ; --- GUI ---
 AppTitle := Settings.APP_TITLE " — " Settings.APP_VERSION
@@ -36,8 +36,8 @@ try {
   App.Add("Text", "xm y+6", "Πιθανότητα επιλογής list1 (%):")
   sldProb := App.Add("Slider", "xm y+2 w300 Range0-100 TickInterval10", Settings.LIST1_PROB_PCT)
   lblProb := App.Add("Text", "x+8 yp", "list1: " Settings.LIST1_PROB_PCT "%")
+  helpLine := App.Add("Text", "xm y+6 cGray", "Η εύρεση διάρκειας έχει αφαιρεθεί πλήρως.")
 
-  helpLine := App.Add("Text", "xm y+6 cGray", "Καθαρισμός, αποθήκευση και όλες οι παλιές συντομεύσεις έχουν αφαιρεθεί.")
   App.OnEvent("Size", (*) => GuiReflow())
   App.Show("w900 h600 Center")
 } catch Error as _eGui2 {
@@ -65,7 +65,6 @@ try {
   logInst.Write(Format("ℹ️ Paths: list={} - random={}", Settings.DATA_LIST_TXT, Settings.DATA_RANDOM_TXT))
   logInst.Write(Format("ℹ️ Πιθανότητα list1: {}%", Settings.LIST1_PROB_PCT))
   logInst.Write(Format("ℹ️ Close Other Windows: {}", (Settings.CLOSE_ALL_OTHER_WINDOWS ? "True" : "False")))
-  ; ❌ Αφαιρέθηκε: log για CDP Enabled/Port
   flowCtl.LoadIdLists()
 } catch Error as _eBoot {
   ; no-op
@@ -79,7 +78,6 @@ try {
   btnCopy.OnEvent("Click", (*) => OnCopyLogs())
   btnClear.OnEvent("Click", (*) => OnClearLogs())
   btnExit.OnEvent("Click", (*) => OnExitApp())
-
   sldProb.OnEvent("Change", SliderProb_Changed)
 } catch Error as _eWire {
   ; no-op
@@ -186,13 +184,8 @@ GuiReflow() {
   global App, btnStart, btnPause, btnStop, btnCopy, btnClear, btnExit, txtHead, txtLog, helpLine, sldProb, lblProb
   try {
     App.GetPos(, , &W, &H)
-    lMargin := 12
-    rMargin := 12
-    topMargin := 12
-    gap := 8
-
-    x := lMargin
-    y := topMargin
+    lMargin := 12, rMargin := 12, topMargin := 12, gap := 8
+    x := lMargin, y := topMargin
 
     btnStart.Move(x, y, 90, 28), x += 90 + gap
     btnPause.Move(x, y, 110, 28), x += 110 + gap
