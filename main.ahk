@@ -7,7 +7,7 @@ SetWorkingDir(A_ScriptDir)
 
 ; ===== Μεταδεδομένα εφαρμογής =====
 APP_TITLE   := "BH Automation — Edge/Chryseis"
-APP_VERSION := "v1.0.7"          ; bump: fix catch blocks + robust Local State reading
+APP_VERSION := "v1.0.8"          ; bump: single-line logs + Copy/Clear buttons + timestamp on initial [Log]
 
 ; ===== Ρυθμίσεις / Επιλογές =====
 EDGE_WIN     := "ahk_exe msedge.exe"
@@ -31,15 +31,17 @@ gStopRequested := false
 App := Gui("+AlwaysOnTop +Resize", APP_TITLE " — " APP_VERSION)
 App.SetFont("s10", "Segoe UI")
 
-; Γραμμή κουμπιών
+; Γραμμή κουμπιών (Start/Pause/Stop + Copy/Clear)
 btnStart := App.Add("Button", "xm ym w90 h28", "Start")
 btnPause := App.Add("Button", "x+8 yp w110 h28", "Pause")
 btnStop  := App.Add("Button", "x+8 yp w90 h28",  "Stop")
+btnCopy  := App.Add("Button", "x+24 yp w110 h28", "Copy Logs")
+btnClear := App.Add("Button", "x+8 yp w110 h28", "Clear Logs")
 
 ; Headline & Log (νεότερα επάνω)
 txtHead := App.Add("Text", "xm y+10 w760 h24 cBlue", "Έτοιμο. " APP_VERSION)
-txtLog  := App.Add("Edit", "xm y+6 w760 h360 ReadOnly Multi -Wrap +VScroll"
-                  , "[Log] " APP_TITLE " — " APP_VERSION)
+; Αρχικό περιεχόμενο κενό — θα γραφτεί με Log() ώστε να μπει timestamp
+txtLog  := App.Add("Edit", "xm y+6 w760 h360 ReadOnly Multi -Wrap +VScroll", "")
 
 ; Γραμμή βοήθειας
 helpLine := App.Add("Text", "xm y+6 cGray"
@@ -51,20 +53,28 @@ App.OnEvent("Size", (*) => GuiReflow())
 ; Events
 btnStart.OnEvent("Click", (*) => OnStart())
 btnPause.OnEvent("Click", (*) => OnPauseResume())
-btnStop.OnEvent("Click",  (*) => OnStop())
+btnStop .OnEvent("Click", (*) => OnStop())
+btnCopy .OnEvent("Click", (*) => OnCopyLogs())
+btnClear.OnEvent("Click", (*) => OnClearLogs())
 
 ; Εμφάνιση GUI
-App.Show("w800 h560 Center")
+App.Show("w900 h560 Center")
+; Γράφουμε αρχική γραμμή ΜΕ ΩΡΑ μπροστά, μονοσειριακά
+Log("[Log] " APP_TITLE " — " APP_VERSION)
 Log("Εφαρμογή ξεκίνησε (clean). " APP_TITLE " — " APP_VERSION)
 
 ; ===== GUI Helpers =====
 GuiReflow() {
-    global App, btnStart, btnPause, btnStop, txtHead, txtLog, helpLine
+    global App, btnStart, btnPause, btnStop, btnCopy, btnClear, txtHead, txtLog, helpLine
     App.GetPos(, , &W, &H)
     margin := 12
+
+    ; Κουμπιά (σε μία σειρά)
     btnStart.Move(margin, margin, 90, 28)
     btnPause.Move(margin + 90 + 8, margin, 110, 28)
-    btnStop.Move(margin + 90 + 8 + 110 + 8, margin, 90, 28)
+    btnStop .Move(margin + 90 + 8 + 110 + 8, margin, 90, 28)
+    btnCopy .Move(W - margin - 110 - 8 - 110, margin, 110, 28)
+    btnClear.Move(W - margin - 110,           margin, 110, 28)
 
     txtHead.Move(margin, margin + 28 + 10, W - 2*margin, 24)
 
@@ -78,16 +88,25 @@ SetHeadline(text) {
     txtHead.Value := text "  —  " APP_VERSION
 }
 
-; ===== Reverse-chronological Log (νεότερα επάνω) =====
+; ===== Reverse-chronological Log (νεότερα επάνω) — ΜΟΝΟσειριακή καταγραφή =====
 Log(text) {
     global txtLog
+    ; Sanitization: αφαίρεση CR/LF/Tab, συμπύκνωση κενών -> μονοσειριακό
+    t := StrReplace(text, "`r", " ")
+    t := StrReplace(t,    "`n", " ")
+    t := StrReplace(t,    "`t", " ")
+    t := RegExReplace(t,  "\s+", " ")  ; συμπύκνωση πολλών κενών
+    t := Trim(t)
+
     ts := FormatTime(A_Now, "HH:mm:ss")
-    newLine := "[" ts "] " text
+    newLine := "[" ts "] " t
+
     cur := txtLog.Value
     if (cur != "")
         txtLog.Value := newLine "`r`n" cur
     else
         txtLog.Value := newLine
+
     ; caret top
     hwnd := txtLog.Hwnd
     DllCall("user32\SendMessage", "ptr", hwnd, "uint", 0xB1, "ptr", 0, "ptr", 0) ; EM_SETSEL(0,0)
@@ -96,11 +115,7 @@ Log(text) {
 
 ; Hotkeys για Log/Info μέσα στο παράθυρο της app
 #HotIf WinActive(APP_TITLE " — " APP_VERSION)
-^+l::{
-    txtLog.Value := ""
-    SetHeadline("Log καθαρίστηκε.")
-    Log("Log cleared by user")
-}
+^+l::OnClearLogs()
 ^+s::{
     if !DirExist("logs")
         DirCreate("logs")
@@ -122,6 +137,20 @@ ShowAbout() {
     Log(Format("About shown — {} {}", APP_TITLE, APP_VERSION))
 }
 
+OnCopyLogs() {
+    global txtLog
+    A_Clipboard := txtLog.Value
+    Log("Logs copied to clipboard")
+    SetHeadline("Logs copied to clipboard")
+}
+
+OnClearLogs() {
+    global txtLog
+    txtLog.Value := ""
+    SetHeadline("Log καθαρίστηκε.")
+    Log("Log cleared by user (button)")
+}
+
 ; ===== Χειριστές Κουμπιών =====
 OnStart() {
     global gRunning, gPaused, gStopRequested, APP_VERSION
@@ -134,8 +163,8 @@ OnStart() {
     gPaused := false
     gStopRequested := false
 
-    ; Start popup + log (3s)
-    msg := Format("Ξεκινάει η ροή αυτοματισμού.`nΈκδοση: {}", APP_VERSION)
+    ; Start popup + log (3s) — μονοσειριακό μήνυμα
+    msg := Format("Ξεκινάει η ροή αυτοματισμού — Έκδοση: {}", APP_VERSION)
     Log("Popup(Start): " msg)
     MsgBox(msg, "BH Automation — Start", "Iconi T3")
 
@@ -199,7 +228,7 @@ RunFlow() {
         SetHeadline("⚠️ Δεν βρέθηκε φάκελος για: " EDGE_PROFILE_NAME)
         Log("Profile dir NOT found; try as-is (using display name as folder)")
         profArg := '--profile-directory="' EDGE_PROFILE_NAME '"'
-        warnMsg := Format('Δεν βρέθηκε φάκελος προφίλ για "{}".`nΘα δοκιμάσω με: {}', EDGE_PROFILE_NAME, profArg)
+        warnMsg := Format('Δεν βρέθηκε φάκελος προφίλ για "{}". Θα δοκιμάσω με: {}', EDGE_PROFILE_NAME, profArg)
         Log("Popup(ProfileWarn): " warnMsg)
         MsgBox(warnMsg, "BH Automation — Προειδοποίηση", "Icon! T3")
     } else {
@@ -222,7 +251,7 @@ RunFlow() {
     Sleep(200)
     SetHeadline("Edge έτοιμος (" EDGE_PROFILE_NAME ")"), Log("Edge ready")
 
-    ; Edge-ready popup + log (3s)
+    ; Edge-ready popup + log (3s) — μονοσειριακό
     readyMsg := Format('Edge ready ("{}").', EDGE_PROFILE_NAME)
     Log("Popup(EdgeReady): " readyMsg)
     MsgBox(readyMsg, "BH Automation — Edge", "Iconi T3")
@@ -261,7 +290,7 @@ ResolveEdgeProfileDirByName(displayName) {
 
     esc := RegexEscape(displayName)
 
-    ; 1) Δοκίμασε "Local State" (περιέχει χαρτογράφηση προφίλ → όνομα)
+    ; 1) Δοκίμασε "Local State"
     localState := base "Local State"
     if FileExist(localState) {
         txt := ""
@@ -271,11 +300,9 @@ ResolveEdgeProfileDirByName(displayName) {
             txt := ""
         }
         if (txt != "") {
-            ; pattern για να απομονώσουμε το μπλοκ info_cache
             pat := '"profile"\s*:\s*\{\s*"info_cache"\s*:\s*\{([\s\S]*?)\}\s*\}'
             if RegExMatch(txt, pat, &m) {
                 cache := m[1]
-                ; Βρες εγγραφές "dir":{"name":"..."}
                 pos := 1
                 while RegExMatch(cache, '"([^"]+)"\s*:\s*\{[^}]*"name"\s*:\s*"([^"]+)"', &mm, pos) {
                     dir := mm[1], nm := mm[2]
@@ -287,7 +314,7 @@ ResolveEdgeProfileDirByName(displayName) {
         }
     }
 
-    ; 2) Fallback: σάρωση φακέλων "Default" + "Profile *" και έλεγχος "Preferences"
+    ; 2) Fallback: Preferences ανά προφίλ
     candidates := ["Default"]
     Loop Files, base "*", "D" {
         d := A_LoopFileName
