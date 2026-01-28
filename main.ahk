@@ -5,6 +5,10 @@
 SetTitleMatchMode(2)
 SetWorkingDir(A_ScriptDir)
 
+; ===== Μεταδεδομένα εφαρμογής =====
+APP_TITLE   := "YT Automation — Edge/Chryseis (CLEAN)"
+APP_VERSION := "v1.0.0"          ; <-- Ανανέωνε SemVer εδώ
+
 ; ===== Σταθερές / Ρυθμίσεις =====
 EDGE_WIN     := "ahk_exe msedge.exe"
 EDGE_PROC    := "msedge.exe"
@@ -18,7 +22,7 @@ gPaused := false
 gStopRequested := false
 
 ; ===== GUI Εφαρμογής =====
-App := Gui("+AlwaysOnTop +Resize", "YT Automation — Edge/Chryseis (CLEAN)")
+App := Gui("+AlwaysOnTop +Resize", APP_TITLE " — " APP_VERSION)
 App.SetFont("s10", "Segoe UI")
 
 ; Γραμμή κουμπιών
@@ -27,11 +31,14 @@ btnPause := App.Add("Button", "x+8 yp w110 h28", "Pause")
 btnStop  := App.Add("Button", "x+8 yp w90 h28",  "Stop")
 
 ; Headline & Log
-txtHead := App.Add("Text", "xm y+10 w760 h24 cBlue", "Έτοιμο.")
+txtHead := App.Add("Text", "xm y+10 w760 h24 cBlue", "Έτοιμο. " APP_VERSION)
 txtLog  := App.Add("Edit", "xm y+6 w760 h360 ReadOnly Multi -Wrap +VScroll"
-                  , "[Log] Εκκίνηση εφαρμογής…")
+                  , "[Log] " APP_TITLE " — " APP_VERSION)
 
-; Resize layout
+; Γραμμή βοήθειας
+helpLine := App.Add("Text", "xm y+6 cGray", "Ctrl+Shift+L: Clear log    Ctrl+Shift+S: Save log    Ctrl+Shift+A: About")
+
+; Προσαρμογή layout σε resize
 App.OnEvent("Size", (*) => GuiReflow())
 
 ; Events
@@ -39,29 +46,29 @@ btnStart.OnEvent("Click", (*) => OnStart())
 btnPause.OnEvent("Click", (*) => OnPauseResume())
 btnStop.OnEvent("Click",  (*) => OnStop())
 
-; Help line
-App.Add("Text", "xm y+6 cGray", "Ctrl+Shift+L: Clear log    Ctrl+Shift+S: Save log")
-
-; Show GUI
-App.Show("w800 h520 Center")
-Log("Εφαρμογή ξεκίνησε (clean).")
+; Εμφάνιση GUI
+App.Show("w800 h540 Center")
+Log("Εφαρμογή ξεκίνησε (clean). " APP_TITLE " — " APP_VERSION)
 
 ; ===== GUI Helpers =====
 GuiReflow() {
-    global App, btnStart, btnPause, btnStop, txtHead, txtLog
+    global App, btnStart, btnPause, btnStop, txtHead, txtLog, helpLine
     App.GetPos(, , &W, &H)
     margin := 12
     btnStart.Move(margin, margin, 90, 28)
     btnPause.Move(margin + 90 + 8, margin, 110, 28)
     btnStop.Move(margin + 90 + 8 + 110 + 8, margin, 90, 28)
+
     txtHead.Move(margin, margin + 28 + 10, W - 2*margin, 24)
+
     topLog := margin + 28 + 10 + 24 + 6
-    txtLog.Move(margin, topLog, W - 2*margin, H - topLog - margin - 24)
+    helpLine.Move(margin, H - margin - 20, W - 2*margin, 20)
+    txtLog.Move(margin, topLog, W - 2*margin, (H - topLog - margin - 24) - 24)
 }
 
 SetHeadline(text) {
-    global txtHead
-    txtHead.Value := text
+    global txtHead, APP_VERSION
+    txtHead.Value := text "  —  " APP_VERSION
 }
 
 Log(text) {
@@ -77,8 +84,8 @@ Log(text) {
     DllCall("user32\SendMessage", "ptr", hwnd, "uint", 0xB7, "ptr", 0, "ptr", 0)   ; EM_SCROLLCARET
 }
 
-; Hotkeys για Log μέσα στο παράθυρο της app
-#HotIf WinActive("YT Automation — Edge/Chryseis (CLEAN)")
+; Hotkeys για Log/Info μέσα στο παράθυρο της app
+#HotIf WinActive(APP_TITLE " — " APP_VERSION)
 ^+l::{
     txtLog.Value := ""
     SetHeadline("Log καθαρίστηκε.")
@@ -91,7 +98,16 @@ Log(text) {
     FileAppend(txtLog.Value, fn, "UTF-8")
     SetHeadline("Log saved → " fn), Log("Log saved → " fn)
 }
+^+a::ShowAbout()
 #HotIf
+
+ShowAbout() {
+    global APP_TITLE, APP_VERSION, EDGE_EXE, EDGE_PROFILE_NAME
+    MsgBox( APP_TITLE " — " APP_VERSION "`n"
+          . "Profile: " EDGE_PROFILE_NAME "`n"
+          . "Edge path: " EDGE_EXE
+          , "About", "Iconi")
+}
 
 ; ===== Χειριστές Κουμπιών =====
 OnStart() {
@@ -103,7 +119,7 @@ OnStart() {
     gRunning := true
     gPaused := false
     gStopRequested := false
-    SetHeadline("Εκκίνηση ροής…"), Log("Start pressed")
+    SetHeadline("Εκκίνηση ροής…"), Log("Start pressed — " APP_VERSION)
 
     try {
         RunFlow()
@@ -173,12 +189,11 @@ RunFlow() {
     SetHeadline("Edge έτοιμος (" EDGE_PROFILE_NAME ")"), Log("Edge ready")
 
     ; 3) --- PLACE YOUR TASKS HERE ---
-    ; Επιλογή Α (default): άνοιγμα ΜΙΑΣ νέας κενής καρτέλας και τέλος
+    ; Default: άνοιγμα μιας νέας κενής καρτέλας και τέλος
     OpenNewTab(hNew)
     SetHeadline("Νέα καρτέλα ανοιχτή — καμία άλλη ενέργεια."), Log("Idle ready")
 
-    ; 4) Κλείσιμο ΜΟΝΟ του νέου παραθύρου (ή αφαίρεσέ το αν θες να μείνει ανοιχτό)
-    ; Αν ΘΕΣ να μείνει ανοιχτό, σχολίασε τις 2 επόμενες γραμμές.
+    ; 4) Κλείσιμο ΜΟΝΟ του νέου παραθύρου (σχολίασέ το αν θες να μείνει ανοιχτό)
     WinClose("ahk_id " hNew)
     WinWaitClose("ahk_id " hNew, , 5)
     SetHeadline("Κύκλος ολοκληρώθηκε."), Log("Cycle done")
@@ -264,3 +279,4 @@ OpenNewTab(hWnd) {
 ; ===== Helpers =====
 DirExist_(path) => InStr(FileExist(path), "D") > 0
 RegexEscape(str) => RegExReplace(str, "([\\.^$*+?()\\[\\]{}|])", "\\$1")
+; ==================== End Of File ====================
