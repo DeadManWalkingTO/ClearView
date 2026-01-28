@@ -11,7 +11,6 @@ SetWorkingDir(A_ScriptDir)
 #Include ..\lib\edge.ahk
 #Include ..\lib\flow.ahk
 #Include ..\lib\log.ahk
-; ❌ Αφαιρέθηκε: #Include ..\lib\cdp_webview.ahk
 
 ; --- GUI ---
 AppTitle := Settings.APP_TITLE " — " Settings.APP_VERSION
@@ -38,8 +37,8 @@ try {
   lblProb := App.Add("Text", "x+8 yp", "list1: " Settings.LIST1_PROB_PCT "%")
   helpLine := App.Add("Text", "xm y+6 cGray", "Η εύρεση διάρκειας έχει αφαιρεθεί πλήρως.")
 
-  App.OnEvent("Size", (*) => GuiReflow())
-  App.Show("w900 h600 Center")
+  ; Εμφάνιση με συγκεκριμένο μέγεθος (χωρίς Center — θα τοποθετηθεί κάτω-δεξιά αυτόματα)
+  App.Show("w670 h400")
 } catch Error as _eGui2 {
   MsgBox("Αποτυχία σύνθεσης στοιχείων GUI.", "Σφάλμα", "Iconx")
   ExitApp
@@ -54,6 +53,134 @@ try {
   MsgBox("Αποτυχία δημιουργίας services.", "Σφάλμα", "Iconx")
   ExitApp
 }
+
+; --- Bottom-Right Auto Positioning ---
+global _br_margin := 10
+global _movingProgrammatically := false
+global _currentMonitorIdx := 0
+
+GetMonitorIndexForWindow() {
+  global App
+  ; Εντοπισμός monitor με βάση το κέντρο του παραθύρου
+  try {
+    App.GetPos(&winX, &winY, &W, &H)
+  } catch Error as _ePos {
+    return MonitorGetPrimary()
+  }
+
+  winCenterX := winX + Floor(W / 2)
+  winCenterY := winY + Floor(H / 2)
+
+  monCount := 1
+  try {
+    monCount := MonitorGetCount()
+  } catch Error as _eCnt {
+    monCount := 1
+  }
+
+  idx := MonitorGetPrimary()
+  i := 1
+  try {
+    loop monCount {
+      MonitorGet(i, &mL, &mT, &mR, &mB)
+      if (winCenterX >= mL) {
+        if (winCenterX <= mR) {
+          if (winCenterY >= mT) {
+            if (winCenterY <= mB) {
+              idx := i
+              break
+            }
+          }
+        }
+      }
+      i += 1
+    }
+  } catch Error as _eScan {
+    ; no-op
+  }
+  return idx
+}
+
+PositionBottomRight(margin := 10) {
+  global App, _currentMonitorIdx, _movingProgrammatically
+  try {
+    ; Επιλογή τρέχοντος monitor (ή primary)
+    monIdx := GetMonitorIndexForWindow()
+    _currentMonitorIdx := monIdx
+
+    ; Work area του monitor (λαμβάνει υπόψη taskbar)
+    MonitorGetWorkArea(monIdx, &waL, &waT, &waR, &waB)
+
+    ; Τρέχον μέγεθος GUI
+    App.GetPos(, , &W, &H)
+
+    ; Υπολογισμός συντεταγμένων
+    x := waR - W - margin
+    y := waB - H - margin
+
+    ; Μετακίνηση (με καταστολή WM_MOVE recursion)
+    _movingProgrammatically := true
+    App.Move(x, y)
+    Sleep(25)
+    _movingProgrammatically := false
+  } catch Error as _eBR {
+    ; no-op
+  }
+}
+
+OnAppSize(*) {
+  global _br_margin, _movingProgrammatically
+  try {
+    ; κάτω-δεξιά μετά από resize
+    PositionBottomRight(_br_margin)
+  } catch Error as _eSize {
+    ; no-op
+  }
+}
+
+WM_DISPLAYCHANGE_Handler(wParam, lParam, msg, hwnd) {
+  global _br_margin
+  try {
+    ; Κάθε αλλαγή διάταξης/ανάλυσης → επανατοποθέτηση
+    PositionBottomRight(_br_margin)
+  } catch Error as _eDisp {
+    ; no-op
+  }
+}
+
+WM_MOVE_Handler(wParam, lParam, msg, hwnd) {
+  ; Αναλύει monitor-index αλλαγές κατά τη μετακίνηση και επανατοποθετεί κάτω-δεξιά
+  global _br_margin, _currentMonitorIdx, _movingProgrammatically
+
+  ; Αν το κινούμε εμείς, αγνόησε (αποφυγή recursion)
+  if (_movingProgrammatically) {
+    return
+  }
+
+  try {
+    newIdx := GetMonitorIndexForWindow()
+  } catch Error as _eMon {
+    newIdx := _currentMonitorIdx
+  }
+
+  ; Μόνο αν άλλαξε monitor-index, επανατοποθέτησε
+  if (newIdx != _currentMonitorIdx) {
+    _currentMonitorIdx := newIdx
+    PositionBottomRight(_br_margin)
+  }
+}
+
+; Wire: Size + DisplayChange + Move
+try {
+  App.OnEvent("Size", OnAppSize)
+} catch Error as _eSizeWire {
+  ; no-op
+}
+OnMessage(0x007E, WM_DISPLAYCHANGE_Handler) ; WM_DISPLAYCHANGE
+OnMessage(0x0003, WM_MOVE_Handler)          ; WM_MOVE
+
+; Αρχική κάτω-δεξιά τοποθέτηση μετά το Show
+PositionBottomRight(_br_margin)
 
 ; --- Boot logs ---
 try {
