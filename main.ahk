@@ -7,7 +7,7 @@ SetWorkingDir(A_ScriptDir)
 
 ; ===== Μεταδεδομένα εφαρμογής =====
 APP_TITLE   := "BH Automation — Edge/Chryseis"
-APP_VERSION := "v1.0.1"          ; <-- Ανανέωνε SemVer εδώ (τουλάχιστον patch) σε ΚΑΘΕ αλλαγή κώδικα
+APP_VERSION := "v1.0.2"          ; <-- Ανανέωνε SemVer εδώ (τουλάχιστον patch) σε ΚΑΘΕ αλλαγή κώδικα
 
 ; ===== Σταθερές / Ρυθμίσεις =====
 EDGE_WIN     := "ahk_exe msedge.exe"
@@ -119,6 +119,10 @@ OnStart() {
     gRunning := true
     gPaused := false
     gStopRequested := false
+
+    ; --- Μήνυμα εκκίνησης με timeout 3s ---
+    MsgBox("Ξεκινάει η ροή αυτοματισμού.", "BH Automation — Start", "Iconi T3")
+
     SetHeadline("Εκκίνηση ροής…"), Log("Start pressed — " APP_VERSION)
 
     try {
@@ -166,8 +170,14 @@ RunFlow() {
     SetHeadline("Εύρεση φακέλου προφίλ…"), Log("Resolve profile by name: " EDGE_PROFILE_NAME)
     profDir := ResolveEdgeProfileDirByName(EDGE_PROFILE_NAME)
     if (profDir = "") {
-        SetHeadline("⚠️ Δεν βρέθηκε φάκελος για: " EDGE_PROFILE_NAME), Log("Profile dir NOT found; try as-is")
+        SetHeadline("⚠️ Δεν βρέθηκε φάκελος για: " EDGE_PROFILE_NAME)
+        Log("Profile dir NOT found; try as-is (using display name as folder)")
         profArg := '--profile-directory="' EDGE_PROFILE_NAME '"'
+
+        ; --- Προειδοποιητικό μήνυμα με timeout 3s ---
+        MsgBox("Δεν βρέθηκε φάκελος προφίλ για """ EDGE_PROFILE_NAME """." . "`n"
+             . "Θα δοκιμάσω με: " profArg
+             , "BH Automation — Προειδοποίηση", "Icon! T3")
     } else {
         SetHeadline("Βρέθηκε: " profDir), Log("Profile dir: " profDir)
         profArg := '--profile-directory="' profDir '"'
@@ -187,6 +197,9 @@ RunFlow() {
     WinMaximize("ahk_id " hNew)
     Sleep(200)
     SetHeadline("Edge έτοιμος (" EDGE_PROFILE_NAME ")"), Log("Edge ready")
+
+    ; --- Μήνυμα Edge ready με timeout 3s ---
+    MsgBox("Edge ready (" EDGE_PROFILE_NAME ").", "BH Automation — Edge", "Iconi T3")
 
     ; 3) --- PLACE YOUR TASKS HERE ---
     ; Default: άνοιγμα μιας νέας κενής καρτέλας και τέλος
