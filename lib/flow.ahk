@@ -10,6 +10,7 @@ class FlowController {
         this._running := false
         this._paused := false
         this._stopRequested := false
+        ; Πίνακες λιστών IDs (φορτώνονται από LoadIdLists)
         this.list1 := []
         this.list2 := []
     }
@@ -17,6 +18,7 @@ class FlowController {
     ; ---- Public API ----
     IsRunning() => this._running
 
+    ; Φόρτωση IDs από τα αρχεία (καλείται στην εκκίνηση από main.ahk)
     LoadIdLists() {
         this.list1 := this._readIdsFromFile(Settings.DATA_LIST_TXT)
         this.list2 := this._readIdsFromFile(Settings.DATA_RANDOM_TXT)
@@ -67,7 +69,7 @@ class FlowController {
         this._checkAbortOrPause()
         this.log.SetHeadline("🔎 Εύρεση Φακέλου Προφίλ…"), this.log.Write("🔎 Εύρεση Φακέλου Προφίλ Με Βάση Το Όνομα: " Settings.EDGE_PROFILE_NAME)
         profDir := this.edge.ResolveProfileDirByName(Settings.EDGE_PROFILE_NAME)
-        profileFound := (profDir != "")
+        profileFound := (profDir != "")  ; σήμανση: βρέθηκε συγκεκριμένος φάκελος;
 
         if (profDir = "") {
             this.log.SetHeadline("⚠️ Δεν Βρέθηκε Φάκελος Για: " Settings.EDGE_PROFILE_NAME)
@@ -102,21 +104,23 @@ class FlowController {
         this.log.ShowTimed("EdgeReady", readyMsg, "BH Automation — Edge", "Iconi")
         this.edge.StepDelay()
 
-        ; 3) Νέα καρτέλα
+        ; 3) Νέα καρτέλα (άρα το νέο παράθυρο έχει 2 tabs: default + νέα)
         this.edge.NewTab(hNew)
-        this.log.SetHeadline("➡️ Νέα Καρτέλα Ανοιχτή — Φόρτωση ID"), this.log.Write("➡️ Νέα Καρτέλα (Κενή)")
+        this.log.SetHeadline("➡️ Νέα Καρτέλα Ανοιχτή — Προκαταρκτικός καθαρισμός"), this.log.Write("➡️ Νέα Καρτέλα (Κενή)")
 
-        ; 3.1) Επιλογή λίστας με πιθανότητα & τυχαίο id, πλοήγηση + play
-        this._navigateWithRandomId(hNew)
-
-        ; 3.2) Λογική tabs για σωστό προφίλ
+        ; 3.1) ΠΡΩΤΑ: Κλείσιμο καρτελών/παραθύρων του ίδιου προφίλ (αν βρέθηκε)
         if (profileFound) {
-            this.log.Write("🧹 Βρέθηκε προφίλ — κρατώ τη νέα καρτέλα στο νέο παράθυρο & κλείνω όλες τις καρτέλες των άλλων παραθύρων του ίδιου προφίλ.")
+            this.log.Write("🧹 Προκαταρκτικός καθαρισμός: κλείνω την «άλλη» καρτέλα στο νέο παράθυρο και όλα τα άλλα παράθυρα του ίδιου προφίλ.")
+            ; i) Κλείσε την «άλλη» καρτέλα στο νέο παράθυρο (κρατά τη νέα)
             this.edge.CloseOtherTabsInNewWindow(hNew)
+            ; ii) Κλείσε όλα τα άλλα παράθυρα του ίδιου profDir (άρα όλες οι καρτέλες τους)
             this.edge.CloseOtherWindowsOfProfile(profDir, hNew)
         } else {
-            this.log.Write("ℹ️ Δεν βρέθηκε φάκελος — ΔΕΝ κλείνω άλλες καρτέλες/παράθυρα.")
+            this.log.Write("ℹ️ Δεν βρέθηκε φάκελος — παραλείπω προκαταρκτικό κλείσιμο καρτελών/παραθύρων.")
         }
+
+        ; 3.2) ΕΠΕΙΤΑ: Επιλογή λίστας με πιθανότητα & τυχαίο id, πλοήγηση + play
+        this._navigateWithRandomId(hNew)
 
         ; 4) Κλείσιμο/Παραμονή παραθύρου
         if (!Settings.KEEP_EDGE_OPEN) {
@@ -135,14 +139,16 @@ class FlowController {
         arr := []
         try {
             txt := FileRead(path, "UTF-8")
-            txt := StrReplace(txt, "`r")
+        } catch Error as e {
+            txt := ""
+        }
+        if (txt != "") {
+            txt := StrReplace(txt, "`r") ; Normalize CRLF/CR/LF -> LF
             for line in StrSplit(txt, "`n") {
                 id := Trim(line)
                 if (id != "")
                     arr.Push(id)
             }
-        } catch as e {
-            this.log.Write("❌ Σφάλμα ανάγνωσης " path ": " e.Message)
         }
         return arr
     }
