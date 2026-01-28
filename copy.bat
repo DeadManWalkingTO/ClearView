@@ -1,1 +1,0 @@
-copy main.ahk main.ahk.txt
