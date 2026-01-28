@@ -7,7 +7,7 @@ SetWorkingDir(A_ScriptDir)
 
 ; ===== Μεταδεδομένα εφαρμογής =====
 APP_TITLE   := "BH Automation — Edge/Chryseis"
-APP_VERSION := "v1.0.11"         ; bump: Title Case logs (single-line, newest-first), no "[Log]" prefix
+APP_VERSION := "v1.0.12"         ; bump: replace StrJoin with JoinTokens() to avoid #Warn
 
 ; ===== Ρυθμίσεις / Επιλογές =====
 EDGE_WIN     := "ahk_exe msedge.exe"
@@ -91,10 +91,18 @@ SetHeadline(text) {
 }
 
 ; ===== Utilities: Title Case & Log =====
-; Μετατρέπει κείμενο σε Title Case, κρατώντας κενά ανάμεσα στις λέξεις:
-; 1) Normalize: αφαιρεί CR/LF/Tab -> space, συμπυκνώνει κενά.
-; 2) Κάνει Capitalize την πρώτη λεκτική μονάδα και την αφήνει με τα υπόλοιπα γράμματα όπως είναι,
-;    εκτός αν θέλεις αυστηρό lower στην ουρά — εδώ κρατάμε τα πεζά/κεφαλαία του χρήστη εκτός από τον 1ο χαρακτήρα.
+; JoinTokens: ασφαλής συνένωση λιστών (αντικαθιστά StrJoin για να μην εμφανίζεται #Warn)
+JoinTokens(arr, sep := " ") {
+    out := ""
+    for i, v in arr {
+        if (i > 1)
+            out .= sep
+        out .= v
+    }
+    return out
+}
+
+; Μετατρέπει κείμενο σε Title Case, κρατώντας κενά ανάμεσα στις λέξεις (single-line normalization).
 ToTitleCase(text) {
     ; Βήμα 1: normalize spaces
     t := StrReplace(text, "`r", " ")
@@ -113,7 +121,7 @@ ToTitleCase(text) {
         rest  := SubStr(p, 2)
         outParts.Push(StrUpper(first) rest)
     }
-    return StrJoin(outParts, " ")
+    return JoinTokens(outParts, " ")
 }
 
 ; Reverse-chronological Log (νεότερα επάνω) — ΜΟΝΟσειριακό & Title Case
