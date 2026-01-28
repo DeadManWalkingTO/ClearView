@@ -4,7 +4,7 @@
 class Settings {
   ; --- Μεταδεδομένα / Εφαρμογή ---
   static APP_TITLE := "BH Automation — Edge/Chryseis"
-  static APP_VERSION := "v3.2.2"   ; Έκδοση
+  static APP_VERSION := "v3.2.2"
 
   ; --- UI / Popups ---
   static POPUP_T := 3
@@ -29,13 +29,22 @@ class Settings {
   static LIST1_PROB_PCT := 50
   static CLOSE_ALL_OTHER_WINDOWS := false
 
-  ; --- Continuous loop (σε λεπτά - για συμβατότητα / fallback) ---
+  ; --- Continuous loop (fallback σε λεπτά) ---
   static LOOP_MIN_MINUTES := 5
   static LOOP_MAX_MINUTES := 10
 
-  ; --- Continuous loop (σε milliseconds - ακρίβεια logs) ---
-  ; Προεπιλογή: ίδια όρια με τα λεπτά (5'–10'), αλλά σε ms
-  static LOOP_MIN_MS := 5 * 60 * 1000
-  static LOOP_MAX_MS := 10 * 60 * 1000
+  ; --- Continuous loop (σε milliseconds, για ακριβή logs) ---
+  static LOOP_MIN_MS := 1 * 60 * 1000
+  static LOOP_MAX_MS := 2 * 60 * 1000
+
+  ; --- ΝΕΟ: απλοποιημένο Play ρυθμίσεις ---
+  ; Αν true, πριν το click γίνεται 1× Ctrl+F6 για ελαφρύ focus στο web content.
+  static SIMPLE_PLAY_FOCUS := true
+
+  ; (Προαιρετικά) Αν true, πριν το click γίνεται και Home (επιστροφή κορυφής).
+  static SIMPLE_PLAY_HOME := false
+
+  ; (Προαιρετικά) Συντελεστής ύψους για το click (0..1), default στο κέντρο 0.50.
+  static SIMPLE_PLAY_Y_FACTOR := 0.50
 }
 ; ==================== End Of File ====================

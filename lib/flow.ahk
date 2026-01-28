@@ -209,8 +209,8 @@ class FlowController {
         } catch Error as _eSlp1 {
         }
 
-        ; 🔸 ΝΕΟ: περνάμε logger στο Play για λεπτομερή βήματα
-        this.edge.PlayYouTube(hNew, true, this.log)
+        ; 🔸 Χρήση της απλοποιημένης μεθόδου
+        this.edge.PlayYouTubeSimple(hNew, this.log)
         try {
           this.log.SleepWithLog(Settings.STEP_DELAY_MS, "μετά το play")
         } catch Error as _eSlp2 {

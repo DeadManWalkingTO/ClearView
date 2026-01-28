@@ -146,24 +146,6 @@ class EdgeService {
     this.StepDelay()
   }
 
-  ; --- ΝΕΟ: πιο «επιθετικό» focus στο web content
-  FocusPageStrong(hWnd) {
-    try {
-      WinActivate("ahk_id " hWnd)
-      WinWaitActive("ahk_id " hWnd, , 3)
-      ; Δύο διαδοχικά Ctrl+F6 (μερικές φορές χρειάζονται πολλαπλά «άλματα»)
-      Send("^{F6}")
-      Sleep(120)
-      Send("^{F6}")
-      Sleep(120)
-      ; Επιπλέον F6 βοηθά σε ορισμένες εκδόσεις Chromium
-      Send("{F6}")
-      Sleep(120)
-    } catch Error as _eFP {
-      ; no-op
-    }
-  }
-
   WaitForYouTubeTitle(hWnd, timeoutMs := 8000) {
     tries := Ceil(timeoutMs / 250.0)
     loop tries {
@@ -181,90 +163,96 @@ class EdgeService {
     return false
   }
 
-  ; ---------------- Robust Play ----------------
+  ; ---------------- Simple Play ----------------
   /**
-   * Ισχυρό Play για YouTube:
-   * - FocusPageStrong → Esc (κλείνει overlays)
-   * - Attempt 1: center click + 'k'
-   * - Attempt 2: Home + top click + 'k'
-   * - Attempt 3: double center click + Space + 'k'
-   * Προαιρετικά δέχεται logger για αναλυτικά logs.
+   * Απλοποιημένο Play για YouTube:
+   * WinActivate → WinMaximize → (προαιρετικά 1× Ctrl+F6) → click center → 'k'
+   * @param {Integer} hWnd
+   * @param {Object}  logger (optional)
    */
-  PlayYouTube(hWnd, doSecondK := false, logger := 0) {
-    this.WaitForYouTubeTitle(hWnd)
-    this.FocusPageStrong(hWnd)
-
-    ; Υπολογισμός βασικών συντεταγμένων
-    CoordMode("Mouse", "Window")
-    WinGetPos(, , &W, &H, "ahk_id " hWnd)
-    cx := Floor(W / 2)
-    cy := Floor(H * 0.45)
-    topY := 220   ; Κορυφαία «ζώνη» που συνήθως καλύπτει τον player (μετά από Home)
-
-    ; Attempt 1
-    if (logger) {
-      try {
-        logger.Write("🎯 Play attempt 1: center click + 'k'")
-      } catch Error as _eL1 {
-      }
-    }
+  PlayYouTubeSimple(hWnd, logger := 0) {
     try {
-      Send("{Esc}")
-      Sleep(120)
+      if (logger) {
+        try {
+          logger.Write("🎯 SimplePlay: WinActivate → Maximize → (optional focus) → CenterClick → 'k'")
+        } catch Error as _eLog0 {
+          ; no-op
+        }
+      }
+
+
+      ; 1) Activate/Maximize
+      WinActivate("ahk_id " hWnd)
+      WinWaitActive("ahk_id " hWnd, , 3)
+      WinMaximize("ahk_id " hWnd)
+      Sleep(150)
+
+      ; 2) Προαιρετικό focus (Ctrl+F6)
+      try {
+        if (Settings.SIMPLE_PLAY_FOCUS) {
+          Send("^{F6}")
+          Sleep(120)
+        }
+      } catch Error as _eFocus {
+        ; no-op
+      }
+
+      ; 2b) Προαιρετικό Home (επιστροφή κορυφής)
+      try {
+        if (Settings.SIMPLE_PLAY_HOME) {
+          Send("{Home}")
+          Sleep(120)
+        }
+      } catch Error as _eHome {
+        ; no-op
+      }
+
+      ; 3) Click στο κέντρο ή σε καθορισμένο ύψος
+      CoordMode("Mouse", "Window")
+      WinGetPos(, , &W, &H, "ahk_id " hWnd)
+      cx := Floor(W / 2)
+
+      ; Αν υπάρχει Y_FACTOR (0..1), το χρησιμοποιούμε, αλλιώς ακριβές κέντρο.
+      yFactor := 0.50
+      try {
+        yFactor := Settings.SIMPLE_PLAY_Y_FACTOR + 0
+      } catch Error as _eYF {
+        yFactor := 0.50
+      }
+      if (yFactor < 0) {
+        yFactor := 0
+      }
+      if (yFactor > 1) {
+        yFactor := 1
+      }
+
+      cy := Floor(H * yFactor)
       Click(cx, cy)
       Sleep(150)
-      Send("k")
-      Sleep(220)
-      if (doSecondK) {
-        Send("k")
-        Sleep(160)
-      }
-    } catch Error as _eA1 {
-      ; no-op
-    }
 
-    ; Attempt 2 (Home + top click + 'k')
-    if (logger) {
-      try {
-        logger.Write("🎯 Play attempt 2: Home + top click + 'k'")
-      } catch Error as _eL2 {
-      }
-    }
-    try {
-      this.FocusPageStrong(hWnd)
-      Send("{Home}")
-      Sleep(200)
-      Click(cx, topY)
-      Sleep(140)
-      Send("k")
-      Sleep(220)
-    } catch Error as _eA2 {
-      ; no-op
-    }
-
-    ; Attempt 3 (double center click + Space + 'k')
-    if (logger) {
-      try {
-        logger.Write("🎯 Play attempt 3: double center click + Space + 'k'")
-      } catch Error as _eL3 {
-      }
-    }
-    try {
-      this.FocusPageStrong(hWnd)
-      Click(cx, cy)
-      Sleep(100)
-      Click(cx, cy)
-      Sleep(120)
-      Send(" ")
-      Sleep(180)
+      ; 4) 'k' για Play/Pause
       Send("k")
       Sleep(200)
-    } catch Error as _eA3 {
-      ; no-op
-    }
 
-    ; Σταθεροποίηση
-    this.StepDelay()
+      if (logger) {
+        try {
+          logger.Write("✅ SimplePlay: done")
+        } catch Error as _eLog1 {
+          ; no-op
+        }
+      }
+
+      ; Μικρή σταθεροποίηση
+      this.StepDelay()
+    } catch Error as _e {
+      if (logger) {
+        try {
+          logger.Write("⚠️ SimplePlay: exception during play")
+        } catch Error as _eLog2 {
+          ; no-op
+        }
+      }
+    }
   }
 
   ; ---------------- Internals ----------------
