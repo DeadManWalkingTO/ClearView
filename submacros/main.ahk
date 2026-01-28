@@ -40,9 +40,9 @@ logInst.Write("ℹ️ Έκδοση: " Settings.APP_VERSION)
 logInst.Write("ℹ️ Εκτελέσιμο Edge: " Settings.EDGE_EXE)
 logInst.Write("ℹ️ Προφίλ: " Settings.EDGE_PROFILE_NAME)
 logInst.Write("ℹ️ Διατήρηση Παραθύρου: " (Settings.KEEP_EDGE_OPEN ? "Ναι" : "Όχι"))
-; ΔΙΟΡΘΩΣΗ: Paths σε μία γραμμή
 logInst.Write("ℹ️ Paths: list=" Settings.DATA_LIST_TXT " - random=" Settings.DATA_RANDOM_TXT)
 logInst.Write("ℹ️ Πιθανότητα list1: " Settings.LIST1_PROB_PCT "%")
+logInst.Write("ℹ️ Close Other Windows: " (Settings.CLOSE_ALL_OTHER_WINDOWS ? "True" : "False"))
 
 ; --- Φόρτωση λιστών στην εκκίνηση ---
 flowCtl.LoadIdLists()

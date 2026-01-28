@@ -4,7 +4,7 @@
 class Settings {
     ; ------- Μεταδεδομένα / Εφαρμογή -------
     static APP_TITLE := "BH Automation — Edge/Chryseis"
-    static APP_VERSION := "v2.9.2"
+    static APP_VERSION := "v2.10.0"
 
     ; ------- Συμπεριφορά UI / Popups -------
     static POPUP_T := 3
@@ -27,11 +27,9 @@ class Settings {
     ; ------- Πιθανότητα επιλογής list1 (0–100) -------
     static LIST1_PROB_PCT := 50
 
-    ; ------- Πολιτική σε άγνωστο προφίλ (ασφαλής) -------
-    static CLOSE_WINDOWS_WHEN_PROFILE_UNKNOWN := false
-
-    ; ------- (Απενεργοποιημένο) FileLock/Handles detection -------
-    static USE_HANDLE_PROFILE_DETECT := false
-    static HANDLE_EXE := ""
+    ; ------- ΜΟΝΗ επιλογή για κλείσιμο άλλων παραθύρων -------
+    ; Αν true: κλείνουμε όλα τα άλλα Edge windows (χωρίς ανίχνευση προφίλ).
+    ; Προεπιλογή: false
+    static CLOSE_ALL_OTHER_WINDOWS := false
 }
 ; ==================== End Of File ====================

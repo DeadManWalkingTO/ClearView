@@ -65,7 +65,6 @@ class FlowController {
         this._checkAbortOrPause()
         this.log.SetHeadline("🔎 Εύρεση Φακέλου Προφίλ…"), this.log.Write("🔎 Εύρεση Φακέλου Προφίλ Με Βάση Το Όνομα: " Settings.EDGE_PROFILE_NAME)
         profDir := this.edge.ResolveProfileDirByName(Settings.EDGE_PROFILE_NAME)
-        profileFound := (profDir != "")
         if (profDir = "") {
             this.log.SetHeadline("⚠️ Δεν Βρέθηκε Φάκελος Για: " Settings.EDGE_PROFILE_NAME)
             this.log.Write("⚠️ Ο Φάκελος Προφίλ Δεν Βρέθηκε — Θα Δοκιμάσω Με Χρήση Του Εμφανιζόμενου Ονόματος Ως Φάκελο")
@@ -97,19 +96,21 @@ class FlowController {
         this.log.ShowTimed("EdgeReady", readyMsg, "BH Automation — Edge", "Iconi")
         this.edge.StepDelay()
 
-        ; 3) Νέα καρτέλα
+        ; 3) Νέα καρτέλα (το νέο παράθυρο έχει τώρα 2 tabs)
         this.edge.NewTab(hNew)
         this.log.SetHeadline("➡️ Νέα Καρτέλα Ανοιχτή"), this.log.Write("➡️ Νέα Καρτέλα (Κενή)")
 
-        ; 3.1) ΠΡΩΤΑ: Κλείσιμο άλλων παραθύρων ίδιου προφίλ (με PID mapping)
-        if (profileFound) {
-            closed := this.edge.CloseOtherWindowsOfProfile(profDir, hNew)
-            this.log.Write("🧹 Προκαταρκτικός καθαρισμός: έκλεισα " closed " παράθυρο/α του ίδιου προφίλ.")
-        } else {
-            this.log.Write("ℹ️ Δεν βρέθηκε φάκελος — παραλείπω προκαταρκτικό κλείσιμο παραθύρων.")
+        ; 3.1) ΠΡΩΤΑ: Ασφαλής καθαρισμός — κλείνω ΜΟΝΟ την «άλλη» καρτέλα
+        this.edge.CloseOtherTabsInNewWindow(hNew)
+        this.log.Write("🧹 Καθαρισμός tabs: έκλεισα την άλλη καρτέλα στο νέο παράθυρο (παραμένει η τρέχουσα).")
+
+        ; 3.2) Προαιρετικά: κλείσιμο όλων των άλλων παραθύρων (χωρίς ανίχνευση)
+        if (Settings.CLOSE_ALL_OTHER_WINDOWS) {
+            this.edge.CloseAllOtherWindows(hNew)
+            this.log.Write("🪟 Κλείσιμο άλλων παραθύρων: ολοκληρώθηκε (CLOSE_ALL_OTHER_WINDOWS=true).")
         }
 
-        ; 3.2) Επιλογή λίστας & πλοήγηση + play
+        ; 3.3) Επιλογή λίστας & πλοήγηση + play
         this._navigateWithRandomId(hNew)
 
         ; 4) Κλείσιμο/Παραμονή παραθύρου
@@ -158,7 +159,6 @@ class FlowController {
         pick := sel[idx]
         url := "https://www.youtube.com/watch?v=" pick
 
-        ; ΔΙΟΡΘΩΣΗ FORMAT: όλα σε μία γραμμή, χωρίς κενά μέσα στα {}.
         this.log.Write(Format("🎲 Επιλέχθηκε λίστα: {} (rand={}, prob={}%), id={}"
             , (useList1 ? "list1" : "list2"), r, prob, pick))
 

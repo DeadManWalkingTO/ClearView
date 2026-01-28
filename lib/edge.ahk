@@ -82,125 +82,36 @@ class EdgeService {
         this.StepDelay()
     }
 
-    ; ------ Μέθοδοι Tabs/Profiles ------
-    GetWindowProfileDir(hWnd) {
-        pid := WinGetPID("ahk_id " hWnd)
-        cmd := ""
-        try {
-            for proc in ComObjGet("winmgmts:").ExecQuery("SELECT CommandLine FROM Win32_Process WHERE ProcessId=" pid) {
-                cmd := proc.CommandLine
-                break
-            }
-        } catch as e {
-            cmd := ""
-        }
-        if (cmd = "")
-            return ""
-        ; Quoted: --profile-directory="Profile N" / "Default"
-        if RegExMatch(cmd, "\-\-profile\-directory=\`"([^\`"]+)\`"", &m)
-            return m[1]
-        ; Unquoted: --profile-directory=ProfileN / Default
-        if RegExMatch(cmd, "\-\-profile\-directory=([^\s]+)", &m)
-            return m[1]
-        return ""
-    }
-
-    ; ROBUST: Ανίχνευση προφίλ με ανάβαση γονέων
-    GetWindowProfileDirRobust(hWnd, maxDepth := 6) {
-        pd := this.GetWindowProfileDir(hWnd)
-        if (pd != "")
-            return pd
-        curPid := WinGetPID("ahk_id " hWnd)
-        depth := 0
-        while (depth < maxDepth) {
-            depth += 1
-            info := this._getProcessInfo(curPid)  ; { cmd, ppid }
-            if (info = 0)
-                break
-            cmd := info.cmd
-            if (cmd != "") {
-                if RegExMatch(cmd, "\-\-profile\-directory=\`"([^\`"]+)\`"", &mm)
-                    return mm[1]
-                if RegExMatch(cmd, "\-\-profile\-directory=([^\s]+)", &mm)
-                    return mm[1]
-            }
-            curPid := info.ppid
-            if (curPid = 0 || curPid = "")
-                break
-        }
-        return ""
-    }
-
-    ; --- ΝΕΟ: Επιστρέφει όλους τους browser-PIDs για ένα profileDir
-    GetBrowserPidsForProfile(profileDir) {
-        arr := []
-        try {
-            q := "SELECT ProcessId, CommandLine FROM Win32_Process WHERE Name='msedge.exe'"
-            for proc in ComObjGet("winmgmts:").ExecQuery(q) {
-                cmd := proc.CommandLine
-                ; Φιλτράρουμε τα child processes (έχουν --type=renderer/gpu/utility κ.λπ.)
-                if (cmd != "" && !RegExMatch(cmd, "\-\-type=")) {
-                    ; Εντοπισμός profile
-                    pd := ""
-                    if RegExMatch(cmd, "\-\-profile\-directory=\`"([^\`"]+)\`"", &m)
-                        pd := m[1]
-                    else if RegExMatch(cmd, "\-\-profile\-directory=([^\s]+)", &m)
-                        pd := m[1]
-                    if (pd != "" && pd = profileDir)
-                        arr.Push(proc.ProcessId)
-                }
-            }
-        } catch as e {
-            ; σιωπηλά
-        }
-        return arr
-    }
-
+    ; ------ Tabs-only cleanup (ΑΣΦΑΛΕΣ: κλείνει ΜΟΝΟ την «άλλη» καρτέλα) ------
+    ; Υπόθεση: Το νέο παράθυρο έχει 2 tabs (την «παλιά» + την νέα κενή).
+    ; Η ρουτίνα μετακινείται στην «άλλη» καρτέλα και την κλείνει ΜΙΑ φορά.
     CloseOtherTabsInNewWindow(hWnd) {
         WinActivate("ahk_id " hWnd)
         WinWaitActive("ahk_id " hWnd, , 3)
-        Send("^+{Tab}") ; στην «παλιά» καρτέλα
+        Send("^+{Tab}")   ; πήγαινε στην «άλλη» καρτέλα (όχι στην ενεργή)
         Sleep(120)
-        Send("^{w}") ; κλείσιμο
-        Sleep(120)
+        Send("^{w}")      ; κλείσ’ την άλλη καρτέλα
+        Sleep(150)
         this.StepDelay()
     }
 
-    ; --- Κλείσιμο windows ίδιου προφίλ: βασισμένο σε PIDs browser-process ---
-    CloseOtherWindowsOfProfile(profileDir, hKeep) {
-        ; Συγκεντρώνουμε τους browser-PIDs για το συγκεκριμένο profile
-        pids := this.GetBrowserPidsForProfile(profileDir)
-        if (pids.Length = 0)
-            return
-        ; Κλείνουμε μόνο windows που ανήκουν σε αυτούς τους PIDs
-        passes := 3, closedTotal := 0
-        loop passes {
-            closedOne := false
-            all := WinGetList(this.sel)
-            for _, h in all {
-                if (h = hKeep)
-                    continue
-                pid := WinGetPID("ahk_id " h)
-                if (this._pidInList(pid, pids)) {
-                    WinClose("ahk_id " h)
-                    WinWaitClose("ahk_id " h, , 3)
-                    if WinExist("ahk_id " h) {
-                        WinActivate("ahk_id " h)
-                        WinWaitActive("ahk_id " h, , 2)
-                        Send("^+w")
-                        Sleep(150)
-                        WinWaitClose("ahk_id " h, , 3)
-                    }
-                    this.StepDelay()
-                    closedOne := true
-                    closedTotal += 1
-                }
+    ; ------ Προαιρετικό: κλείσιμο όλων των άλλων παραθύρων ------
+    CloseAllOtherWindows(hKeep) {
+        all := WinGetList(this.sel)
+        for _, h in all {
+            if (h = hKeep)
+                continue
+            WinClose("ahk_id " h)
+            WinWaitClose("ahk_id " h, , 3)
+            if WinExist("ahk_id " h) {
+                WinActivate("ahk_id " h)
+                WinWaitActive("ahk_id " h, , 2)
+                Send("^+w")
+                Sleep(150)
+                WinWaitClose("ahk_id " h, , 3)
             }
-            if (!closedOne)
-                break
+            this.StepDelay()
         }
-        ; Επιστρέφουμε πόσα έκλεισαν για logging
-        return closedTotal
     }
 
     ; ---- Πλοήγηση σε URL στην ενεργή καρτέλα ----
@@ -255,24 +166,6 @@ class EdgeService {
     }
 
     ; ---- Internals ----
-    _getProcessInfo(pid) {
-        try {
-            for proc in ComObjGet("winmgmts:").ExecQuery("SELECT CommandLine, ParentProcessId FROM Win32_Process WHERE ProcessId=" pid) {
-                return { cmd: proc.CommandLine, ppid: proc.ParentProcessId }
-            }
-        } catch as e {
-            return 0
-        }
-        return 0
-    }
-
-    _pidInList(pid, arr) {
-        for _, p in arr
-            if (p = pid)
-                return true
-        return false
-    }
-
     _findNewWindow(beforeArr, afterArr) {
         seen := Map()
         for _, h in beforeArr
