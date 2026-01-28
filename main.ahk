@@ -7,7 +7,7 @@ SetWorkingDir(A_ScriptDir)
 
 ; ===== Μεταδεδομένα εφαρμογής =====
 APP_TITLE   := "BH Automation — Edge/Chryseis"
-APP_VERSION := "v1.0.20"         ; bump: default log icon ▪️ (emoji presentation) for stable width across lines
+APP_VERSION := "v1.0.21"         ; bump: default neutral log icon → 🔵
 
 ; ===== Ρυθμίσεις / Επιλογές =====
 EDGE_WIN     := "ahk_exe msedge.exe"
@@ -129,7 +129,7 @@ ToTitleCase(text) {
 
 ; Επιλογή Unicode icon ανά κατηγορία μηνύματος (input: Title Case string)
 GetLogIconUnicode(msgTitleCase) {
-    ; Σημ.: χρησιμοποιούμε emoji presentation (όπου χρειάζεται) για συνεπές πλάτος.
+    ; Χρησιμοποιούμε emoji presentation ώστε να έχουμε συνεπή «πλάτη».
     if InStr(msgTitleCase, "Popup:")
         return "ℹ️"    ; information
     if InStr(msgTitleCase, "Profile Warn")
@@ -148,8 +148,8 @@ GetLogIconUnicode(msgTitleCase) {
         return "❌"    ; cross mark
     if InStr(msgTitleCase, "Start Pressed") || InStr(msgTitleCase, "Resumed")
         return "▶️"    ; play
-    ; Προεπιλογή: μικρό μαύρο τετράγωνο **με VS16** για ίδια εμφάνιση/πλάτος
-    return "▪️"
+    ; Προεπιλογή (ουδέτερο): μπλε κύκλος για ίδιο «πάτημα» με τα υπόλοιπα
+    return "🔵"
 }
 
 ; Reverse-chronological Log (νεότερα επάνω), Title Case, single-line, με Unicode icon μετά την ώρα
@@ -173,7 +173,7 @@ Log(text) {
 }
 
 ; Timed popup + log "(T=3s)"
-; Μορφή στο log: "Popup: <Kind> (T=3s)" (θα πάρει Unicode icon από Log()).
+; Μορφή στο log: "Popup: <Kind> (T=3s)" (παίρνει icon από Log()).
 ShowTimedMsg(kind, text, title, icon := "Iconi") {
     global POPUP_T
     Log(Format("Popup: {} (T={}s)", kind, POPUP_T))
