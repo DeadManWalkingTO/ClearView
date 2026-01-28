@@ -17,7 +17,8 @@ class Settings {
     static PROFILE_DIR_FORCE := ""
 
     ; ------- Χρονισμοί / Καθυστερήσεις -------
-    static EDGE_STEP_DELAY_MS := 1500
+    static EDGE_STEP_DELAY_MS := 1500     ; μικρά βήματα (υπήρχε ήδη)
+    static STEP_DELAY_MS := 5000          ; ΝΕΟ: “μεγάλο” step delay (5s)
 
     ; ------- Paths δεδομένων -------
     static DATA_LIST_TXT := "..\data\list.txt"
@@ -27,8 +28,6 @@ class Settings {
     static LIST1_PROB_PCT := 50
 
     ; ------- ΜΟΝΗ επιλογή για κλείσιμο άλλων παραθύρων -------
-    ; Αν true: κλείνουμε όλα τα άλλα Edge windows (χωρίς ανίχνευση προφίλ).
-    ; Προεπιλογή: false
     static CLOSE_ALL_OTHER_WINDOWS := false
 
     ; ------- CDP / Remote Debugging -------

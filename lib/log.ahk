@@ -17,10 +17,8 @@ class Logger {
         ; Καμία αλλοίωση κειμένου: γράφουμε ακριβώς το input
         ts := FormatTime(A_Now, "HH:mm:ss")
         line := "[" ts "] " text
-
         cur := this.txtLog.Value
         this.txtLog.Value := (cur != "") ? (line "`r`n" cur) : line
-
         ; caret top
         hwnd := this.txtLog.Hwnd
         DllCall("user32\SendMessage", "ptr", hwnd, "uint", 0xB1, "ptr", 0, "ptr", 0)
@@ -35,6 +33,27 @@ class Logger {
 
     Clear() {
         this.txtLog.Value := ""
+    }
+
+    ; --- ΝΕΟ: Καθυστέρηση με logging ---
+    ; Χρήση: logInst.SleepWithLog(Settings.STEP_DELAY_MS, "Μετά την πλοήγηση")
+    SleepWithLog(ms, label := "") {
+        try {
+            d := ms + 0
+            if (d <= 0) {
+                return
+            }
+            ; Μήνυμα προς το Log
+            if (label != "") {
+                this.Write(Format("⏳ Καθυστέρηση {} ms — {}", d, label))
+            } else {
+                this.Write(Format("⏳ Καθυστέρηση {} ms", d))
+            }
+            Sleep(d)
+        } catch Error as e {
+            ; Αν κάτι πάει στραβά, απλώς μην εμποδίσεις τη ροή
+            this.Write(Format("⚠️ Αδυναμία καθυστέρησης: {} ({}:{})", e.Message, e.File, e.Line))
+        }
     }
 }
 ; ==================== End Of File ====================

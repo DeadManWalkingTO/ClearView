@@ -37,17 +37,14 @@ class EdgeService {
             pref := base cand "\Preferences"
             if !FileExist(pref)
                 continue
-
             txt2 := ""
             try {
                 txt2 := FileRead(pref, "UTF-8")
-            } catch Error as e {        ; block-based try/catch (όχι μονογραμμικό)
-                txt2 := ""              ; ασφαλής fallback
+            } catch Error as e {
+                txt2 := ""
             }
-
             if (txt2 = "")
                 continue
-
             if RegexLib.PreferencesContainsProfileName(txt2, displayName)
                 return cand
         }
@@ -55,7 +52,7 @@ class EdgeService {
     }
 
     OpenNewWindow(profileArg) {
-        ; --- ΠΡΟΣΘΗΚΗ: CDP flag όταν είναι ενεργό ---
+        ; --- CDP flag όταν είναι ενεργό ---
         try {
             if (Settings.CDP_ENABLED) {
                 profileArg .= " --remote-debugging-port=" Settings.CDP_PORT
@@ -139,7 +136,7 @@ class EdgeService {
         this.StepDelay()
     }
 
-    WaitForYouTubeTitle(hWnd, timeoutMs := 8000) { ; αυξήθηκε λίγο
+    WaitForYouTubeTitle(hWnd, timeoutMs := 8000) {
         tries := Ceil(timeoutMs / 250.0)
         loop tries {
             t := WinGetTitle("ahk_id " hWnd)
@@ -179,6 +176,7 @@ class EdgeService {
     }
 
     _dirExist(path) => InStr(FileExist(path), "D") > 0
+
     StepDelay() {
         Sleep(Settings.EDGE_STEP_DELAY_MS)
     }

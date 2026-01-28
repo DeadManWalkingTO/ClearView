@@ -114,7 +114,7 @@ class FlowController {
         ; 3.3) Επιλογή λίστας & πλοήγηση + play
         this._navigateWithRandomId(hNew)
 
-        ; --- CDP: Ανάγνωση διάρκειας από το ενεργό YouTube tab ---
+        ; --- CDP: Ανάγνωση διάρκειας από το ενεργό YouTube tab
         if (Settings.CDP_ENABLED) {
             try {
                 cdp := CDP(Settings.CDP_PORT)
@@ -179,12 +179,23 @@ class FlowController {
         idx := Random(1, sel.Length)
         pick := sel[idx]
         url := "https://www.youtube.com/watch?v=" pick
+
         this.log.Write(Format("🎲 Επιλέχθηκε λίστα: {} (rand={}, prob={}% ), id={}"
             , (useList1 ? "list1" : "list2"), r, prob, pick))
+
+        ; --- Πλοήγηση ---
         this.edge.NavigateToUrl(hWnd, url)
         this.log.Write("🌐 Πλοήγηση σε: " url)
+
+        ; >>> Καθυστέρηση με logging (μεγάλο step) <<<
+        this.log.SleepWithLog(Settings.STEP_DELAY_MS, "μετά την πλοήγηση")
+
+        ; --- Play ---
         this.edge.PlayYouTube(hWnd)
         this.log.Write("▶️ Αποστολή εντολής Play (k) με pre-click")
+
+        ; >>> Καθυστέρηση με logging (μεγάλο step) <<<
+        this.log.SleepWithLog(Settings.STEP_DELAY_MS, "μετά το play")
     }
 
     _checkAbortOrPause() {
