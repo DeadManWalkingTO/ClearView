@@ -7,7 +7,7 @@ SetWorkingDir(A_ScriptDir)
 
 ; ===== Μεταδεδομένα εφαρμογής =====
 APP_TITLE   := "BH Automation — Edge/Chryseis"
-APP_VERSION := "v1.0.16"         ; bump: Markdown emoji icons after timestamp for all logs
+APP_VERSION := "v1.0.17"         ; bump: add DirExist_/RegexEscape helpers to resolve #Warn
 
 ; ===== Ρυθμίσεις / Επιλογές =====
 EDGE_WIN     := "ahk_exe msedge.exe"
@@ -25,10 +25,8 @@ KEEP_EDGE_OPEN := true
 ; Καθολικό timeout για ενημερωτικά popups (σε δευτ.)
 POPUP_T := 3
 
-; ===== Επιλογές εικονιδίων Log =====
-; MD mode: αν true, χρησιμοποιεί Markdown emoji shortcodes (π.χ. :warning:, :sparkles:, :fast_forward:)
-; αν false, θα μπορούσαμε να επιστρέψουμε Unicode/ASCII—το κρατάμε ON για το αίτημά σου.
-LOG_MD_MODE := true
+; ===== Επιλογές εικονιδίων Log (Markdown shortcodes) =====
+LOG_MD_MODE := true   ; χρησιμοποιεί :emoji: shortcodes
 
 ; ===== Κατάσταση Εκτέλεσης =====
 gRunning := false
@@ -94,7 +92,7 @@ SetHeadline(text) {
     txtHead.Value := text "  —  " APP_VERSION
 }
 
-; ===== Utilities: Title Case & Log =====
+; ===== Title Case & Log =====
 JoinTokens(arr, sep := " ") {
     out := ""
     for i, v in arr {
@@ -105,7 +103,6 @@ JoinTokens(arr, sep := " ") {
     return out
 }
 
-; Single-line Title Case (με προστασία ειδικών tokens)
 ToTitleCase(text) {
     ; Normalize spaces
     t := StrReplace(text, "`r", " ")
@@ -114,14 +111,10 @@ ToTitleCase(text) {
     t := RegExReplace(t,  "\s+", " ")
     t := Trim(t)
 
-    ; Προστασία ειδικών tokens που δεν θέλουμε να αλλοιωθούν:
-    ; 1) Suffix "(T=3s)"
+    ; Προστασία "(T=3s)" και :emoji:
     t := StrReplace(t, "(T=3s)", "__TIME_SUFFIX__")
-    ; 2) Markdown emoji shortcodes :token: (π.χ., :warning:, :sparkles:)
-    ;    Τα τυλίγουμε σε placeholders ώστε να μην γίνουν Title Case.
-    saved := Map()     ; placeholder -> original
-    idx := 0
-    pos := 1
+    saved := Map()
+    idx := 0, pos := 1
     while RegExMatch(t, ":\w+?:", &mm, pos) {
         idx++
         placeholder := "__MD_EMOJI_" idx "__"
@@ -130,7 +123,6 @@ ToTitleCase(text) {
         pos := InStr(t, placeholder) + StrLen(placeholder)
     }
 
-    ; Title Case
     parts := StrSplit(t, " ")
     outParts := []
     for _, p in parts {
@@ -142,54 +134,44 @@ ToTitleCase(text) {
     }
     tc := JoinTokens(outParts, " ")
 
-    ; Επαναφορά placeholders
     for placeholder, original in saved
         tc := StrReplace(tc, placeholder, original)
     tc := StrReplace(tc, "__TIME_SUFFIX__", "(T=3s)")
-
     return tc
 }
 
-; Επιλογή Markdown emoji shortcode ανά κατηγορία (εισαγωγή μετά την ώρα)
 GetLogIconMD(msgTitleCase) {
-    ; Σειρά ελέγχου: πιο συγκεκριμένα πρώτα
-    if InStr(msgTitleCase, "Popup:")                         ; ενημερωτικό popup
-        return ":information_source:"       ; ℹ️
+    if InStr(msgTitleCase, "Popup:")
+        return ":information_source:"
     if InStr(msgTitleCase, "Profile Warn") || InStr(msgTitleCase, "Warning")
-        return ":warning:"                  ; ⚠️
+        return ":warning:"
     if InStr(msgTitleCase, "Open Edge New Window")
-        return ":fast_forward:"             ; >> 
+        return ":fast_forward:"
     if InStr(msgTitleCase, "New Tab")
-        return ":arrow_forward:"            ; >
+        return ":arrow_forward:"
     if InStr(msgTitleCase, "Edge Ready")
-        return ":white_check_mark:"         ; ✅
+        return ":white_check_mark:"
     if InStr(msgTitleCase, "Cycle Done")
-        return ":sparkles:"                 ; ✨
+        return ":sparkles:"
     if InStr(msgTitleCase, "Paused")
-        return ":pause_button:"             ; ⏸️
+        return ":pause_button:"
     if InStr(msgTitleCase, "Stop Requested")
-        return ":x:"                        ; ❌
+        return ":x:"
     if InStr(msgTitleCase, "Start Pressed") || InStr(msgTitleCase, "Resumed")
-        return ":arrow_right:"              ; ▶️
-    ; Προεπιλογή
-    return ":small_blue_diamond:"           ; 🔹
+        return ":arrow_right:"
+    return ":small_blue_diamond:"
 }
 
-; Επιλογή εικονιδίου με βάση το LOG_MD_MODE (εδώ το MD είναι ενεργό)
 GetLogIcon(msgTitleCase) {
     global LOG_MD_MODE
-    if LOG_MD_MODE
-        return GetLogIconMD(msgTitleCase)
-    ; αλλιώς θα μπορούσαμε να επιστρέψουμε Unicode/ASCII (δεν χρειάζεται τώρα)
-    return ">"
+    return LOG_MD_MODE ? GetLogIconMD(msgTitleCase) : ">"
 }
 
-; Reverse-chronological Log (νεότερα επάνω), Title Case, single-line, με icon μετά την ώρα
+; Reverse-chronological Log (νεότερα επάνω), Title Case, single-line, με :emoji: μετά την ώρα
 Log(text) {
     global txtLog
     tc := ToTitleCase(text)
     icon := GetLogIcon(tc)
-
     ts := FormatTime(A_Now, "HH:mm:ss")
     newLine := "[" ts "] " icon " " tc
 
@@ -201,12 +183,11 @@ Log(text) {
 
     ; caret top
     hwnd := txtLog.Hwnd
-    DllCall("user32\SendMessage", "ptr", hwnd, "uint", 0xB1, "ptr", 0, "ptr", 0) ; EM_SETSEL(0,0)
-    DllCall("user32\SendMessage", "ptr", hwnd, "uint", 0xB7, "ptr", 0, "ptr", 0) ; EM_SCROLLCARET
+    DllCall("user32\SendMessage", "ptr", hwnd, "uint", 0xB1, "ptr", 0, "ptr", 0)
+    DllCall("user32\SendMessage", "ptr", hwnd, "uint", 0xB7, "ptr", 0, "ptr", 0)
 }
 
-; Timed popup + log "(T=3s)" (με Markdown emoji icon στη γραμμή log)
-; Μορφή log: "Popup: <Kind> (T=3s)"
+; Timed popup + log "(T=3s)"
 ShowTimedMsg(kind, text, title, icon := "Iconi") {
     global POPUP_T
     Log(Format("Popup: {} (T={}s)", kind, POPUP_T))
@@ -214,7 +195,7 @@ ShowTimedMsg(kind, text, title, icon := "Iconi") {
     MsgBox(text, title, opt)
 }
 
-; Hotkeys για Log/Info μέσα στο παράθυρο της app
+; ===== Hotkeys =====
 #HotIf WinActive(APP_TITLE " — " APP_VERSION)
 ^+l::OnClearLogs()
 ^+s::{
@@ -471,5 +452,16 @@ FindNewWindowHandle(beforeArr, afterArr) {
             return h
     }
     return 0
+}
+
+; ===== Helpers (έλλειπαν και προκαλούσαν #Warn) =====
+DirExist_(path) {
+    ; true αν υπάρχει directory (FileExist επιστρέφει "D" για φακέλους)
+    return InStr(FileExist(path), "D") > 0
+}
+
+RegexEscape(str) {
+    ; Escape ειδικών regex χαρακτήρων
+    return RegExReplace(str, "([\\.^$*+?()\\[\\]{}|])", "\\$1")
 }
 ; ==================== End Of File ====================
