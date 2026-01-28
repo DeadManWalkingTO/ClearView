@@ -9,24 +9,17 @@ class EdgeService {
     this.sel := winSelector
   }
 
-  /**
-   * Εντοπίζει φάκελο προφίλ του Edge με βάση το εμφανιζόμενο όνομα (displayName).
-   * Προτεραιότητα: Settings.PROFILE_DIR_FORCE → Local State → Preferences → Default/Profile N.
-   */
+  ; ---------------- Profile resolve ----------------
   ResolveProfileDirByName(displayName) {
     if (Settings.PROFILE_DIR_FORCE != "") {
       return Settings.PROFILE_DIR_FORCE
     }
-
     c := RegexLib.Chars
-    base := EnvGet("LOCALAPPDATA")
-      . c.BS "Microsoft" c.BS "Edge" c.BS "User Data" c.BS
-
+    base := EnvGet("LOCALAPPDATA") . c.BS "Microsoft" c.BS "Edge" c.BS "User Data" c.BS
     if (!this._dirExist(base)) {
       return ""
     }
 
-    ; --- Διαβάζουμε "Local State" (JSON-σαν κείμενο) και ψάχνουμε στο info_cache ---
     localState := base "Local State"
     if FileExist(localState) {
       txt := ""
@@ -41,7 +34,6 @@ class EdgeService {
       }
     }
 
-    ; --- Υποψήφιοι φάκελοι: Default + Profile N ---
     candidates := ["Default"]
     try {
       Loop Files, base "*", "D" {
@@ -51,10 +43,9 @@ class EdgeService {
         }
       }
     } catch Error as e {
-      ; σιωπηλά
+      ; no-op
     }
 
-    ; --- Έλεγχος Preferences ανά υποψήφιο φάκελο ---
     for _, cand in candidates {
       pref := base cand c.BS "Preferences"
       if !FileExist(pref) {
@@ -73,17 +64,13 @@ class EdgeService {
         return cand
       }
     }
-
     return ""
   }
 
-  /**
-   * Ανοίγει νέο παράθυρο Edge με δοθέντα arguments. Επιστρέφει νέο hwnd ή 0.
-   */
+  ; ---------------- Window/Tab ops ----------------
   OpenNewWindow(profileArg) {
     before := WinGetList(this.sel)
     try {
-      ; Περνάμε το εκτελέσιμο σε quotes για ασφάλεια (διαστήματα στο path)
       Run('"' this.exe '" ' profileArg)
     } catch Error as e {
       return 0
@@ -102,9 +89,6 @@ class EdgeService {
     return 0
   }
 
-  /**
-   * Άνοιγμα νέας καρτέλας.
-   */
   NewTab(hWnd) {
     WinActivate("ahk_id " hWnd)
     WinWaitActive("ahk_id " hWnd, , 3)
@@ -113,9 +97,6 @@ class EdgeService {
     this.StepDelay()
   }
 
-  /**
-   * Κλείνει την άλλη καρτέλα στο καινούριο παράθυρο (κρατά την τρέχουσα).
-   */
   CloseOtherTabsInNewWindow(hWnd) {
     WinActivate("ahk_id " hWnd)
     WinWaitActive("ahk_id " hWnd, , 3)
@@ -126,9 +107,6 @@ class EdgeService {
     this.StepDelay()
   }
 
-  /**
-   * Κλείνει όλα τα άλλα παράθυρα Edge εκτός από το hKeep (best-effort).
-   */
   CloseAllOtherWindows(hKeep) {
     all := WinGetList(this.sel)
     for _, h in all {
@@ -148,9 +126,6 @@ class EdgeService {
     }
   }
 
-  /**
-   * Πλοήγηση σε URL (εστίαση address bar, εισαγωγή, Enter).
-   */
   NavigateToUrl(hWnd, url) {
     WinActivate("ahk_id " hWnd)
     WinWaitActive("ahk_id " hWnd, , 3)
@@ -163,9 +138,6 @@ class EdgeService {
     this.StepDelay()
   }
 
-  /**
-   * Εστίαση στη σελίδα (Ctrl+F6).
-   */
   FocusPage(hWnd) {
     WinActivate("ahk_id " hWnd)
     WinWaitActive("ahk_id " hWnd, , 3)
@@ -174,13 +146,33 @@ class EdgeService {
     this.StepDelay()
   }
 
-  /**
-   * Περιμένει μέχρι ο τίτλος του παραθύρου να περιέχει "YouTube".
-   */
+  ; --- ΝΕΟ: πιο «επιθετικό» focus στο web content
+  FocusPageStrong(hWnd) {
+    try {
+      WinActivate("ahk_id " hWnd)
+      WinWaitActive("ahk_id " hWnd, , 3)
+      ; Δύο διαδοχικά Ctrl+F6 (μερικές φορές χρειάζονται πολλαπλά «άλματα»)
+      Send("^{F6}")
+      Sleep(120)
+      Send("^{F6}")
+      Sleep(120)
+      ; Επιπλέον F6 βοηθά σε ορισμένες εκδόσεις Chromium
+      Send("{F6}")
+      Sleep(120)
+    } catch Error as _eFP {
+      ; no-op
+    }
+  }
+
   WaitForYouTubeTitle(hWnd, timeoutMs := 8000) {
     tries := Ceil(timeoutMs / 250.0)
     loop tries {
-      t := WinGetTitle("ahk_id " hWnd)
+      t := ""
+      try {
+        t := WinGetTitle("ahk_id " hWnd)
+      } catch Error as _eT {
+        t := ""
+      }
       if InStr(t, "YouTube") {
         return true
       }
@@ -189,48 +181,93 @@ class EdgeService {
     return false
   }
 
+  ; ---------------- Robust Play ----------------
   /**
-   * Πιο ανθεκτικό Play στο YouTube:
-   * - WaitForYouTubeTitle → FocusPage → Esc (overlays) → center-click → 'k' → fallback Space → δεύτερο 'k' (προαιρετικό) → μικρή καθυστέρηση.
+   * Ισχυρό Play για YouTube:
+   * - FocusPageStrong → Esc (κλείνει overlays)
+   * - Attempt 1: center click + 'k'
+   * - Attempt 2: Home + top click + 'k'
+   * - Attempt 3: double center click + Space + 'k'
+   * Προαιρετικά δέχεται logger για αναλυτικά logs.
    */
-  PlayYouTube(hWnd, doSecondK := false) {
+  PlayYouTube(hWnd, doSecondK := false, logger := 0) {
     this.WaitForYouTubeTitle(hWnd)
-    this.FocusPage(hWnd)
+    this.FocusPageStrong(hWnd)
 
-    ; 1) Κλείσε πιθανά overlays (cookie / login / mini-dialogues)
-    Send("{Esc}")
-    Sleep(120)
-
-    ; 2) Click στο κέντρο του player
+    ; Υπολογισμός βασικών συντεταγμένων
     CoordMode("Mouse", "Window")
     WinGetPos(, , &W, &H, "ahk_id " hWnd)
-    x := Floor(W / 2), y := Floor(H * 0.45)
-    Click(x, y)
-    Sleep(150)
+    cx := Floor(W / 2)
+    cy := Floor(H * 0.45)
+    topY := 220   ; Κορυφαία «ζώνη» που συνήθως καλύπτει τον player (μετά από Home)
 
-    ; 3) Κύριο πλήκτρο Play/Pause
-    Send("k")
-    Sleep(200)
-
-    ; 4) Fallback: Space
-    Send(" ")
-    Sleep(150)
-
-    ; 5) Προαιρετικό δεύτερο 'k'
-    if (doSecondK) {
+    ; Attempt 1
+    if (logger) {
+      try {
+        logger.Write("🎯 Play attempt 1: center click + 'k'")
+      } catch Error as _eL1 {
+      }
+    }
+    try {
+      Send("{Esc}")
+      Sleep(120)
+      Click(cx, cy)
+      Sleep(150)
       Send("k")
-      Sleep(180)
+      Sleep(220)
+      if (doSecondK) {
+        Send("k")
+        Sleep(160)
+      }
+    } catch Error as _eA1 {
+      ; no-op
     }
 
-    ; 6) Μικρή σταθεροποίηση
+    ; Attempt 2 (Home + top click + 'k')
+    if (logger) {
+      try {
+        logger.Write("🎯 Play attempt 2: Home + top click + 'k'")
+      } catch Error as _eL2 {
+      }
+    }
+    try {
+      this.FocusPageStrong(hWnd)
+      Send("{Home}")
+      Sleep(200)
+      Click(cx, topY)
+      Sleep(140)
+      Send("k")
+      Sleep(220)
+    } catch Error as _eA2 {
+      ; no-op
+    }
+
+    ; Attempt 3 (double center click + Space + 'k')
+    if (logger) {
+      try {
+        logger.Write("🎯 Play attempt 3: double center click + Space + 'k'")
+      } catch Error as _eL3 {
+      }
+    }
+    try {
+      this.FocusPageStrong(hWnd)
+      Click(cx, cy)
+      Sleep(100)
+      Click(cx, cy)
+      Sleep(120)
+      Send(" ")
+      Sleep(180)
+      Send("k")
+      Sleep(200)
+    } catch Error as _eA3 {
+      ; no-op
+    }
+
+    ; Σταθεροποίηση
     this.StepDelay()
   }
 
   ; ---------------- Internals ----------------
-
-  /**
-   * Εντοπίζει νέο hwnd ανάμεσα στις λίστες before/after.
-   */
   _findNewWindow(beforeArr, afterArr) {
     seen := Map()
     for _, h in beforeArr {
@@ -244,14 +281,8 @@ class EdgeService {
     return 0
   }
 
-  /**
-   * Έλεγχος αν path είναι directory.
-   */
   _dirExist(path) => InStr(FileExist(path), "D") > 0
 
-  /**
-   * Μικρή καθυστέρηση βημάτων Edge (ρυθμίσιμη από Settings).
-   */
   StepDelay() {
     Sleep(Settings.EDGE_STEP_DELAY_MS)
   }

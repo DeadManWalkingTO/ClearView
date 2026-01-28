@@ -3,7 +3,6 @@
 #Include "settings.ahk"
 #Include "regex.ahk"
 #Include "edge.ahk"
-; ❌ Δεν υπάρχει λογική διάρκειας (έχει αφαιρεθεί)
 
 class FlowController {
   __New(log, edge, settings) {
@@ -13,25 +12,22 @@ class FlowController {
     this._running := false
     this._paused := false
     this._stopRequested := false
-    this._cycleCount := 0            ; Μετρητής κύκλων
+    this._cycleCount := 0
     this.list1 := []
     this.list2 := []
   }
 
   IsRunning() => this._running
 
-  ; Φόρτωση λιστών βίντεο (IDs)
   LoadIdLists() {
     this.list1 := this._readIdsFromFile(Settings.DATA_LIST_TXT)
     this.list2 := this._readIdsFromFile(Settings.DATA_RANDOM_TXT)
     try {
       this.log.Write(Format("📥 Φόρτωση λιστών: list1={}, list2={}", this.list1.Length, this.list2.Length))
     } catch Error as _e {
-      ; no-op
     }
   }
 
-  ; Έναρξη κύκλου ροής
   StartRun() {
     if this._running {
       try {
@@ -92,7 +88,6 @@ class FlowController {
     this._stopRequested := true
   }
 
-  ; ---------------- Κύριος βρόχος ροής ----------------
   _run() {
     local profDir := "", profArg := "", hNew := 0
 
@@ -103,7 +98,6 @@ class FlowController {
     } catch Error as _e {
     }
 
-    ; Βρες φάκελο προφίλ
     profDir := this.edge.ResolveProfileDirByName(Settings.EDGE_PROFILE_NAME)
     if (profDir = "") {
       try {
@@ -129,7 +123,6 @@ class FlowController {
       profArg := "--profile-directory=" RegexLib.Str.Quote(profDir)
     }
 
-    ; Νέο παράθυρο
     profArg .= " --new-window"
 
     this.edge.StepDelay()
@@ -151,7 +144,6 @@ class FlowController {
       return
     }
 
-    ; Προετοιμασία νέου παραθύρου
     WinActivate("ahk_id " hNew)
     WinWaitActive("ahk_id " hNew, , 5)
     WinMaximize("ahk_id " hNew)
@@ -167,7 +159,6 @@ class FlowController {
     } catch Error as _e {
     }
 
-    ; Νέα καρτέλα & καθαρισμός
     this.edge.StepDelay()
     this.edge.NewTab(hNew)
     try {
@@ -189,24 +180,21 @@ class FlowController {
       }
     }
 
-    ; ---------------- Continuous loop: Πλοήγηση+Play → Αναμονή → επανάληψη ----------------
+    ; ---------------- Continuous loop ----------------
     try {
       loop {
         this._checkAbortOrPause()
 
-        ; Πληροφορίες κύκλου
         this._cycleCount += 1
         cycleNo := this._cycleCount
         startTs := FormatTime(A_Now, "yyyy-MM-dd HH:mm:ss")
 
-        ; Επικεφαλίδα GUI με αρίθμηση κύκλου
         try {
           this.log.SetHeadline(Format("🔄 Κύκλος #{} σε εξέλιξη…", cycleNo))
         } catch Error as _eHead1 {
         }
 
-        ; Επιλογή τυχαίου βίντεο & logs
-        info := this._pickRandomVideo(hNew)  ; {useList1, id, url, r, prob}
+        info := this._pickRandomVideo(hNew)
         try {
           lst := (info.useList1 ? "list1" : "list2")
           this.log.Write(Format("📑 Κύκλος #{} — {} | rand={} | prob={}%", cycleNo, lst, info.r, info.prob))
@@ -215,20 +203,19 @@ class FlowController {
         } catch Error as _eHdr {
         }
 
-        ; Πλοήγηση & Play
         this.edge.NavigateToUrl(hNew, info.url)
         try {
           this.log.SleepWithLog(Settings.STEP_DELAY_MS, "μετά την πλοήγηση")
         } catch Error as _eSlp1 {
         }
-        this.edge.PlayYouTube(hNew, true)
+
+        ; 🔸 ΝΕΟ: περνάμε logger στο Play για λεπτομερή βήματα
+        this.edge.PlayYouTube(hNew, true, this.log)
         try {
-          this.log.Write("▶️ Αποστολή εντολής Play (k) με pre-click")
           this.log.SleepWithLog(Settings.STEP_DELAY_MS, "μετά το play")
         } catch Error as _eSlp2 {
         }
 
-        ; --- Τυχαία αναμονή ακριβώς σε ms ---
         waitMs := this._computeRandomWaitMs()
         try {
           this.log.Write(Format("⏳ Αναμονή ακριβώς {} ms ({}) — κύκλος #{}", waitMs, this._fmtDurationMs(waitMs), cycleNo))
@@ -237,7 +224,6 @@ class FlowController {
         }
         this._sleepRespectingPauseStop(waitMs, "αναμονή μεταξύ βίντεο")
 
-        ; Τέλος κύκλου — ενημέρωση header
         try {
           this.log.Write(Format("🟢 Τέλος Κύκλου #{}", cycleNo))
           this.log.SetHeadline(Format("🟢 Τέλος Κύκλου #{}", cycleNo))
@@ -245,10 +231,9 @@ class FlowController {
         }
       }
     } catch Error as _eLoop {
-      ; Σπάσιμο βρόχου: "Stopped by user" ή άλλο σφάλμα — StartRun() θα γράψει λεπτομέρειες.
+      ; break
     }
 
-    ; Τερματισμός κύκλου: κλείσιμο ή παραμονή παραθύρου
     if (!Settings.KEEP_EDGE_OPEN) {
       WinClose("ahk_id " hNew)
       WinWaitClose("ahk_id " hNew, , 5)
@@ -267,8 +252,7 @@ class FlowController {
     }
   }
 
-  ; ---------------- Βοηθητικά ----------------
-
+  ; ---------------- Helpers ----------------
   _readIdsFromFile(path) {
     arr := []
     txt := ""
@@ -312,10 +296,8 @@ class FlowController {
     return { useList1: useList1, id: pick, url: url, r: r, prob: prob }
   }
 
-  ; Υπολογισμός τυχαίας αναμονής σε ms (ακριβές, με fallback στα λεπτά)
   _computeRandomWaitMs() {
     minMs := 0, maxMs := 0
-    ; Πρώτα δοκίμασε τα Settings σε ms
     try {
       minMs := Settings.LOOP_MIN_MS + 0
     } catch Error as _e1 {
@@ -326,7 +308,6 @@ class FlowController {
     } catch Error as _e2 {
       maxMs := 0
     }
-
     if (minMs > 0) {
       if (maxMs > 0) {
         if (maxMs < minMs) {
@@ -335,12 +316,9 @@ class FlowController {
         try {
           return Round(Random(minMs, maxMs))
         } catch Error as _eRandMs {
-          ; θα συνεχίσουμε με fallback στα λεπτά
         }
       }
     }
-
-    ; Fallback: υπολόγισε από λεπτά
     minMin := 0, maxMin := 0
     try {
       minMin := Settings.LOOP_MIN_MINUTES + 0
@@ -363,7 +341,6 @@ class FlowController {
     return Floor(rndMin * 60000)
   }
 
-  ; Μορφοποίηση ms σε "Mm Ss mmmms" (π.χ. "8m 57s 428ms")
   _fmtDurationMs(ms) {
     total := ms + 0
     if (total < 0) {
@@ -374,7 +351,6 @@ class FlowController {
     s := Floor(rem / 1000)
     msRem := Mod(rem, 1000)
 
-    ; Μηδενικά για αναγνωσιμότητα
     sTxt := s < 10 ? "0" s : "" s
     msTxt := ""
     if (msRem < 10) {
@@ -389,7 +365,6 @@ class FlowController {
     return m "m " sTxt "s " msTxt "ms"
   }
 
-  ; Αναμονή που σέβεται Παύση/Τερματισμό
   _sleepRespectingPauseStop(ms, label := "") {
     chunk := 500
     elapsed := 0
@@ -401,7 +376,6 @@ class FlowController {
       }
     } catch Error as _eStartLog {
     }
-
     while (elapsed < ms) {
       while this._paused {
         Sleep(150)
