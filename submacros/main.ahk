@@ -8,6 +8,7 @@ SetWorkingDir(A_ScriptDir)
 #Include ..\lib\log.ahk
 #Include ..\lib\edge.ahk
 #Include ..\lib\flow.ahk
+#Include ..\lib\cdp.ahk
 
 ; ---- GUI ----
 App := Gui("+AlwaysOnTop +Resize", Settings.APP_TITLE " — " Settings.APP_VERSION)
@@ -20,7 +21,6 @@ btnClear := App.Add("Button", "x+8 yp w110 h28", "Καθαρισμός Log")
 btnExit := App.Add("Button", "x+8 yp w90 h28", "Έξοδος")
 txtHead := App.Add("Text", "xm y+10 w760 h24 cBlue", "Έτοιμο. " Settings.APP_VERSION)
 txtLog := App.Add("Edit", "xm y+6 w860 h360 ReadOnly Multi -Wrap +VScroll", "")
-
 App.Add("Text", "xm y+6", "Πιθανότητα επιλογής list1 (%):")
 sldProb := App.Add("Slider", "xm y+2 w300 Range0-100 TickInterval10", Settings.LIST1_PROB_PCT)
 lblProb := App.Add("Text", "x+8 yp", "list1: " Settings.LIST1_PROB_PCT "%")
@@ -43,8 +43,9 @@ logInst.Write("ℹ️ Διατήρηση Παραθύρου: " (Settings.KEEP_ED
 logInst.Write("ℹ️ Paths: list=" Settings.DATA_LIST_TXT " - random=" Settings.DATA_RANDOM_TXT)
 logInst.Write("ℹ️ Πιθανότητα list1: " Settings.LIST1_PROB_PCT "%")
 logInst.Write("ℹ️ Close Other Windows: " (Settings.CLOSE_ALL_OTHER_WINDOWS ? "True" : "False"))
+logInst.Write("ℹ️ CDP Enabled: " (Settings.CDP_ENABLED ? "True" : "False") ", Port: " Settings.CDP_PORT)
 
-; --- Φόρτωση λιστών στην εκκίνηση ---
+; Φόρτωση λιστών στην εκκίνηση
 flowCtl.LoadIdLists()
 
 ; ---- Wire Events ----
@@ -101,8 +102,8 @@ OnCopyLogs() {
 OnClearLogs() {
   global logInst
   logInst.Clear()
-  logInst.SetHeadline("🧼 Καθαρίστηκε")
-  logInst.Write("🧼 Καθαρισμός Log")
+  logInst.SetHeadline("🧽 Καθαρίστηκε")
+  logInst.Write("🧽 Καθαρισμός Log")
 }
 
 OnExitApp() {

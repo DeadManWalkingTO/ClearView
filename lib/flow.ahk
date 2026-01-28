@@ -1,6 +1,7 @@
 ﻿; ==================== lib/flow.ahk ====================
 #Requires AutoHotkey v2.0
 #Include "settings.ahk"
+#Include "cdp.ahk"
 
 class FlowController {
     __New(log, edge, settings) {
@@ -100,18 +101,38 @@ class FlowController {
         this.edge.NewTab(hNew)
         this.log.SetHeadline("➡️ Νέα Καρτέλα Ανοιχτή"), this.log.Write("➡️ Νέα Καρτέλα (Κενή)")
 
-        ; 3.1) ΠΡΩΤΑ: Ασφαλής καθαρισμός — κλείνω ΜΟΝΟ την «άλλη» καρτέλα
+        ; 3.1) Ασφαλής καθαρισμός — κλείνω ΜΟΝΟ την «άλλη» καρτέλα
         this.edge.CloseOtherTabsInNewWindow(hNew)
         this.log.Write("🧹 Καθαρισμός tabs: έκλεισα την άλλη καρτέλα στο νέο παράθυρο (παραμένει η τρέχουσα).")
 
-        ; 3.2) Προαιρετικά: κλείσιμο όλων των άλλων παραθύρων (χωρίς ανίχνευση)
+        ; 3.2) Προαιρετικά: κλείσιμο όλων των άλλων παραθύρων
         if (Settings.CLOSE_ALL_OTHER_WINDOWS) {
             this.edge.CloseAllOtherWindows(hNew)
-            this.log.Write("🪟 Κλείσιμο άλλων παραθύρων: ολοκληρώθηκε (CLOSE_ALL_OTHER_WINDOWS=true).")
+            this.log.Write("🛠️ Κλείσιμο άλλων παραθύρων: ολοκληρώθηκε (CLOSE_ALL_OTHER_WINDOWS=true).")
         }
 
         ; 3.3) Επιλογή λίστας & πλοήγηση + play
         this._navigateWithRandomId(hNew)
+
+        ; --- CDP: Ανάγνωση διάρκειας από το ενεργό YouTube tab ---
+        if (Settings.CDP_ENABLED) {
+            try {
+                cdp := CDP(Settings.CDP_PORT)
+                if (cdp.ConnectToYouTubeTab()) {
+                    dur := cdp.GetYouTubeDurationSeconds()
+                    if (dur >= 0) {
+                        this.log.Write("⏱️ Διάρκεια βίντεο (s): " dur)
+                    } else {
+                        this.log.Write("⚠️ CDP: δεν βρέθηκε διάρκεια (ytp-time-duration)")
+                    }
+                    cdp.Disconnect()
+                } else {
+                    this.log.Write("⚠️ CDP: αποτυχία σύνδεσης στο YouTube tab")
+                }
+            } catch Error as e {
+                this.log.Write("⚠️ CDP σφάλμα: " e.Message)
+            }
+        }
 
         ; 4) Κλείσιμο/Παραμονή παραθύρου
         if (!Settings.KEEP_EDGE_OPEN) {
@@ -158,13 +179,10 @@ class FlowController {
         idx := Random(1, sel.Length)
         pick := sel[idx]
         url := "https://www.youtube.com/watch?v=" pick
-
-        this.log.Write(Format("🎲 Επιλέχθηκε λίστα: {} (rand={}, prob={}%), id={}"
+        this.log.Write(Format("🎲 Επιλέχθηκε λίστα: {} (rand={}, prob={}% ), id={}"
             , (useList1 ? "list1" : "list2"), r, prob, pick))
-
         this.edge.NavigateToUrl(hWnd, url)
         this.log.Write("🌐 Πλοήγηση σε: " url)
-
         this.edge.PlayYouTube(hWnd)
         this.log.Write("▶️ Αποστολή εντολής Play (k) με pre-click")
     }

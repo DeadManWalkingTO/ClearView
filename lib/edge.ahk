@@ -9,14 +9,12 @@ class EdgeService {
         this.sel := winSelector
     }
 
-    ; ---- Public API ----
     ResolveProfileDirByName(displayName) {
         if (Settings.PROFILE_DIR_FORCE != "")
             return Settings.PROFILE_DIR_FORCE
         base := EnvGet("LOCALAPPDATA") "\Microsoft\Edge\User Data\"
-        if !this._dirExist(base)
+        if (!this._dirExist(base))
             return ""
-        ; 1) Από "Local State"
         localState := base "Local State"
         if FileExist(localState) {
             txt := ""
@@ -29,7 +27,6 @@ class EdgeService {
             if (dirFromLocal != "")
                 return dirFromLocal
         }
-        ; 2) Fallback: Default + Profile N / Preferences
         candidates := ["Default"]
         Loop Files, base "*", "D" {
             d := A_LoopFileName
@@ -40,14 +37,17 @@ class EdgeService {
             pref := base cand "\Preferences"
             if !FileExist(pref)
                 continue
+
             txt2 := ""
             try {
                 txt2 := FileRead(pref, "UTF-8")
-            } catch as e {
-                txt2 := ""
+            } catch Error as e {        ; block-based try/catch (όχι μονογραμμικό)
+                txt2 := ""              ; ασφαλής fallback
             }
+
             if (txt2 = "")
                 continue
+
             if RegexLib.PreferencesContainsProfileName(txt2, displayName)
                 return cand
         }
@@ -55,6 +55,15 @@ class EdgeService {
     }
 
     OpenNewWindow(profileArg) {
+        ; --- ΠΡΟΣΘΗΚΗ: CDP flag όταν είναι ενεργό ---
+        try {
+            if (Settings.CDP_ENABLED) {
+                profileArg .= " --remote-debugging-port=" Settings.CDP_PORT
+            }
+        } catch Error as e {
+            ; ignore
+        }
+
         before := WinGetList(this.sel)
         try {
             Run('"' this.exe '" ' profileArg)
@@ -82,20 +91,16 @@ class EdgeService {
         this.StepDelay()
     }
 
-    ; ------ Tabs-only cleanup (ΑΣΦΑΛΕΣ: κλείνει ΜΟΝΟ την «άλλη» καρτέλα) ------
-    ; Υπόθεση: Το νέο παράθυρο έχει 2 tabs (την «παλιά» + την νέα κενή).
-    ; Η ρουτίνα μετακινείται στην «άλλη» καρτέλα και την κλείνει ΜΙΑ φορά.
     CloseOtherTabsInNewWindow(hWnd) {
         WinActivate("ahk_id " hWnd)
         WinWaitActive("ahk_id " hWnd, , 3)
-        Send("^+{Tab}")   ; πήγαινε στην «άλλη» καρτέλα (όχι στην ενεργή)
+        Send("^+{Tab}")
         Sleep(120)
-        Send("^{w}")      ; κλείσ’ την άλλη καρτέλα
+        Send("^{w}")
         Sleep(150)
         this.StepDelay()
     }
 
-    ; ------ Προαιρετικό: κλείσιμο όλων των άλλων παραθύρων ------
     CloseAllOtherWindows(hKeep) {
         all := WinGetList(this.sel)
         for _, h in all {
@@ -114,11 +119,10 @@ class EdgeService {
         }
     }
 
-    ; ---- Πλοήγηση σε URL στην ενεργή καρτέλα ----
     NavigateToUrl(hWnd, url) {
         WinActivate("ahk_id " hWnd)
         WinWaitActive("ahk_id " hWnd, , 3)
-        Send("^{l}") ; focus address bar
+        Send("^{l}")
         Sleep(120)
         Send(url)
         Sleep(120)
@@ -127,16 +131,15 @@ class EdgeService {
         this.StepDelay()
     }
 
-    ; ------ Focus & Play στο YouTube ------
     FocusPage(hWnd) {
         WinActivate("ahk_id " hWnd)
         WinWaitActive("ahk_id " hWnd, , 3)
-        Send("^{F6}") ; pane: page content (Edge)
+        Send("^{F6}")
         Sleep(120)
         this.StepDelay()
     }
 
-    WaitForYouTubeTitle(hWnd, timeoutMs := 6000) {
+    WaitForYouTubeTitle(hWnd, timeoutMs := 8000) { ; αυξήθηκε λίγο
         tries := Ceil(timeoutMs / 250.0)
         loop tries {
             t := WinGetTitle("ahk_id " hWnd)
@@ -148,14 +151,14 @@ class EdgeService {
     }
 
     PlayYouTube(hWnd, doSecondK := false) {
-        this.WaitForYouTubeTitle(hWnd) ; best-effort
+        this.WaitForYouTubeTitle(hWnd)
         this.FocusPage(hWnd)
         CoordMode("Mouse", "Window")
         WinGetPos(, , &W, &H, "ahk_id " hWnd)
         x := Floor(W / 2), y := Floor(H * 0.45)
         Click(x, y)
         Sleep(150)
-        Send("k") ; YouTube Play/Pause
+        Send("k")
         Sleep(250)
         this.StepDelay()
         if (doSecondK) {
@@ -165,7 +168,6 @@ class EdgeService {
         }
     }
 
-    ; ---- Internals ----
     _findNewWindow(beforeArr, afterArr) {
         seen := Map()
         for _, h in beforeArr
@@ -177,7 +179,6 @@ class EdgeService {
     }
 
     _dirExist(path) => InStr(FileExist(path), "D") > 0
-
     StepDelay() {
         Sleep(Settings.EDGE_STEP_DELAY_MS)
     }

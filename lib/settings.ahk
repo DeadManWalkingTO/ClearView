@@ -1,10 +1,9 @@
 ﻿; ==================== lib/settings.ahk ====================
 #Requires AutoHotkey v2.0
-
 class Settings {
     ; ------- Μεταδεδομένα / Εφαρμογή -------
     static APP_TITLE := "BH Automation — Edge/Chryseis"
-    static APP_VERSION := "v2.10.0"
+    static APP_VERSION := "v2.11.0"
 
     ; ------- Συμπεριφορά UI / Popups -------
     static POPUP_T := 3
@@ -31,5 +30,9 @@ class Settings {
     ; Αν true: κλείνουμε όλα τα άλλα Edge windows (χωρίς ανίχνευση προφίλ).
     ; Προεπιλογή: false
     static CLOSE_ALL_OTHER_WINDOWS := false
+
+    ; ------- CDP / Remote Debugging -------
+    static CDP_ENABLED := true
+    static CDP_PORT := 9222
 }
 ; ==================== End Of File ====================
