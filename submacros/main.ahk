@@ -8,14 +8,10 @@ SetWorkingDir(A_ScriptDir)
 ; --- Includes (lib) ---
 #Include ..\lib\settings.ahk
 #Include ..\lib\regex.ahk
-#Include ..\lib\json.ahk
-#Include ..\lib\wsclient.ahk
-#Include ..\lib\cdp_http.ahk
-#Include ..\lib\cdp_js.ahk
-#Include ..\lib\cdp.ahk
 #Include ..\lib\edge.ahk
 #Include ..\lib\flow.ahk
 #Include ..\lib\log.ahk
+#Include ..\lib\cdp_webview.ahk  ; ✅ Νέο port-less CDP
 
 ; --- GUI ---
 AppTitle := Settings.APP_TITLE " — " Settings.APP_VERSION
@@ -30,13 +26,13 @@ try {
 try {
   btnStart := App.Add("Button", "xm ym w90 h28", "Έναρξη")
   btnPause := App.Add("Button", "x+8 yp w110 h28", "Παύση")
-  btnStop  := App.Add("Button", "x+8 yp w90 h28", "Τερματισμός")
-  btnCopy  := App.Add("Button", "x+24 yp w110 h28", "Αντιγραφή Log")
+  btnStop := App.Add("Button", "x+8 yp w90 h28", "Τερματισμός")
+  btnCopy := App.Add("Button", "x+24 yp w110 h28", "Αντιγραφή Log")
   btnClear := App.Add("Button", "x+8 yp w110 h28", "Καθαρισμός Log")
-  btnExit  := App.Add("Button", "x+8 yp w90 h28", "Έξοδος")
+  btnExit := App.Add("Button", "x+8 yp w90 h28", "Έξοδος")
 
   txtHead := App.Add("Text", "xm y+10 w760 h24 cBlue", "Έτοιμο. " Settings.APP_VERSION)
-  txtLog  := App.Add("Edit", "xm y+6 w860 h360 ReadOnly Multi -Wrap +VScroll", "")
+  txtLog := App.Add("Edit", "xm y+6 w860 h360 ReadOnly Multi -Wrap +VScroll", "")
   App.Add("Text", "xm y+6", "Πιθανότητα επιλογής list1 (%):")
   sldProb := App.Add("Slider", "xm y+2 w300 Range0-100 TickInterval10", Settings.LIST1_PROB_PCT)
   lblProb := App.Add("Text", "x+8 yp", "list1: " Settings.LIST1_PROB_PCT "%")
@@ -69,9 +65,7 @@ try {
   logInst.Write(Format("ℹ️ Paths: list={} - random={}", Settings.DATA_LIST_TXT, Settings.DATA_RANDOM_TXT))
   logInst.Write(Format("ℹ️ Πιθανότητα list1: {}%", Settings.LIST1_PROB_PCT))
   logInst.Write(Format("ℹ️ Close Other Windows: {}", (Settings.CLOSE_ALL_OTHER_WINDOWS ? "True" : "False")))
-  logInst.Write(Format("ℹ️ CDP Enabled: {}, Port: {}", (Settings.CDP_ENABLED ? "True" : "False"), Settings.CDP_PORT))
-
-  ; Προφόρτωση λιστών
+  ; ❌ Αφαιρέθηκε: log για CDP Enabled/Port
   flowCtl.LoadIdLists()
 } catch Error as _eBoot {
   ; no-op
@@ -81,10 +75,10 @@ try {
 try {
   btnStart.OnEvent("Click", (*) => OnStart())
   btnPause.OnEvent("Click", (*) => OnPauseResume())
-  btnStop.OnEvent("Click",  (*) => OnStop())
-  btnCopy.OnEvent("Click",  (*) => OnCopyLogs())
+  btnStop.OnEvent("Click", (*) => OnStop())
+  btnCopy.OnEvent("Click", (*) => OnCopyLogs())
   btnClear.OnEvent("Click", (*) => OnClearLogs())
-  btnExit.OnEvent("Click",  (*) => OnExitApp())
+  btnExit.OnEvent("Click", (*) => OnExitApp())
 
   sldProb.OnEvent("Change", SliderProb_Changed)
 } catch Error as _eWire {
@@ -202,8 +196,8 @@ GuiReflow() {
 
     btnStart.Move(x, y, 90, 28), x += 90 + gap
     btnPause.Move(x, y, 110, 28), x += 110 + gap
-    btnStop.Move(x, y, 90, 28),   x += 90 + gap
-    btnCopy.Move(x, y, 110, 28),  x += 110 + gap
+    btnStop.Move(x, y, 90, 28), x += 90 + gap
+    btnCopy.Move(x, y, 110, 28), x += 110 + gap
     btnClear.Move(x, y, 110, 28), x += 110 + gap
     btnExit.Move(x, y, 90, 28)
 

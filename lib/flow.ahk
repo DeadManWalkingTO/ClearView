@@ -3,8 +3,7 @@
 #Include "settings.ahk"
 #Include "regex.ahk"
 #Include "edge.ahk"
-#Include "cdp.ahk"
-#Include "cdp_diag.ahk"
+#Include "cdp_webview.ahk"  ; ✅ Port-less CDP
 
 class FlowController {
   __New(log, edge, settings) {
@@ -118,9 +117,10 @@ class FlowController {
         ; no-op
       }
 
+      ; Σύνθεση arg με ασφαλή quotes (RegexLib.Str)
       profArg := "--profile-directory=" RegexLib.Str.Quote(Settings.EDGE_PROFILE_NAME)
 
-      ; Ασφαλής quoted εμφάνιση ονόματος με RegexLib.Str.Quote(...)
+      ; Ενημερωτικό popup
       quotedName := RegexLib.Str.Quote(Settings.EDGE_PROFILE_NAME)
       warnMsg := Format("Δεν βρέθηκε φάκελος προφίλ για {}. Θα δοκιμάσω με: {}", quotedName, profArg)
 
@@ -139,11 +139,8 @@ class FlowController {
       profArg := "--profile-directory=" RegexLib.Str.Quote(profDir)
     }
 
-    ; Νέο παράθυρο + Remote Debugging αν είναι ενεργό
+    ; Νέο παράθυρο
     profArg .= " --new-window"
-    if (Settings.CDP_ENABLED) {
-      profArg .= " --remote-debugging-port=" Settings.CDP_PORT
-    }
 
     this.edge.StepDelay()
     this._checkAbortOrPause()
@@ -212,34 +209,17 @@ class FlowController {
     ; --- Πλοήγηση + σταθεροποίηση για Play ---
     this._navigateWithRandomId(hNew)
 
-    ; --- (Προαιρετικό) Διαγνωστικό πριν το CDP connect ---
+    ; --- Υπολογισμός διάρκειας με WebViewCDP (port-less) ---
+    local dur := -1
     try {
-      CDP_DiagProbe(Settings.CDP_PORT, this.log, 8000, 300)
-    } catch Error as _eProbe {
-      ; no-op
-    }
-
-    ; --- Προαιρετικό CDP: υπολογισμός διάρκειας βίντεο ---
-    local cdpInst := 0, dur := -1
-    if (Settings.CDP_ENABLED) {
-      try {
-        cdpInst := CDP_Create(Settings.CDP_PORT)  ; factory για linters
-        if (cdpInst.ConnectToYouTubeTab()) {
-          dur := cdpInst.GetYouTubeDurationSeconds()
-          if (dur >= 0) {
-            this.log.Write(Format("⏱️ Διάρκεια βίντεo (s): {}", dur))
-          } else {
-            this.log.Write("⚠️ CDP: δεν βρέθηκε διάρκεια (ytp-time-duration)")
-          }
-          cdpInst.Disconnect()
-        } else {
-          this.log.Write("⚠️ CDP: αποτυχία σύνδεσης στο YouTube tab")
-        }
-      } catch Error as e {
-        this.log.SafeErrorLog("⚠️ CDP σφάλμα:", e)
-        cdpInst := 0
-        dur := -1
+      dur := WebViewCDP.GetYouTubeDurationSeconds(hNew)
+      if (dur >= 0) {
+        this.log.Write(Format("⏱️ Διάρκεια βίντεο (s): {}", dur))
+      } else {
+        this.log.Write("⚠️ WebViewCDP: δεν βρέθηκε διάρκεια (JS via address bar)")
       }
+    } catch Error as _eDur {
+      this.log.Write("⚠️ WebViewCDP: σφάλμα κατά την ανάγνωση διάρκειας")
     }
 
     ; Τερματισμός κύκλου

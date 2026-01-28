@@ -31,8 +31,6 @@ class Settings {
   ; ---- Κλείσιμο άλλων παραθύρων ----
   static CLOSE_ALL_OTHER_WINDOWS := false
 
-  ; ---- CDP / Remote Debugging ----
-  static CDP_ENABLED := true
-  static CDP_PORT := 9222
+  ; ❌ Αφαιρέθηκαν: CDP_ENABLED, CDP_PORT (δεν χρησιμοποιούνται πλέον)
 }
 ; ==================== End Of File ====================
