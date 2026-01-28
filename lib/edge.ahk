@@ -2,6 +2,7 @@
 #Requires AutoHotkey v2.0
 #Include "settings.ahk"
 #Include "regex.ahk"
+#Include "moves.ahk"
 
 class EdgeService {
   __New(edgeExe, winSelector := "ahk_exe msedge.exe") {
@@ -227,6 +228,7 @@ class EdgeService {
       }
 
       cy := Floor(H * yFactor)
+      MoveMouseRandom4(cx, cy)
       Click(cx, cy)
       Sleep(150)
 
