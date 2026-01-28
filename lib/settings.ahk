@@ -5,7 +5,7 @@
 class Settings {
     ; ------- Μεταδεδομένα / Εφαρμογή -------
     static APP_TITLE := "BH Automation — Edge/Chryseis"
-    static APP_VERSION := "v2.5.2" ; αλλάζεις εδώ την έκδοση
+    static APP_VERSION := "v2.8.2" ; αλλάζεις εδώ την έκδοση
 
     ; ------- Συμπεριφορά UI / Popups -------
     static POPUP_T := 3 ; διάρκεια ενημερωτικών πλαισίων (δευτ.)
