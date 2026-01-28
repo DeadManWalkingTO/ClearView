@@ -1,6 +1,7 @@
 ﻿; ==================== lib/edge.ahk ====================
 #Requires AutoHotkey v2.0
 #Include "settings.ahk"
+#Include "regex.ahk"
 
 class EdgeService {
     __New(edgeExe, winSelector := "ahk_exe msedge.exe") {
@@ -10,7 +11,7 @@ class EdgeService {
 
     ; ---- Public API ----
     ResolveProfileDirByName(displayName) {
-        ; Bypass αν έχεις καρφωμένη τιμή
+        ; Άμεσο bypass αν έχει οριστεί force
         if (Settings.PROFILE_DIR_FORCE != "")
             return Settings.PROFILE_DIR_FORCE
 
@@ -18,9 +19,7 @@ class EdgeService {
         if !this._dirExist(base)
             return ""
 
-        esc := this._regexEscape(displayName)
-
-        ; 1) Local State (info_cache)
+        ; 1) Προσπάθεια από Local State (info_cache)
         localState := base "Local State"
         if FileExist(localState) {
             txt := ""
@@ -29,46 +28,31 @@ class EdgeService {
             } catch as e {
                 txt := ""
             }
-            if (txt != "") {
-                pat := '"profile"\s*:\s*\{\s*"info_cache"\s*:\s*\{([\s\S]*?)\}\s*\}'
-                if RegExMatch(txt, pat, &m) {
-                    cache := m[1], pos := 1
-                    while RegExMatch(cache, '"([^"]+)"\s*:\s*\{[^}]*"name"\s*:\s*"([^"]+)"', &mm, pos) {
-                        dir := mm[1], nm := mm[2]
-                        if (nm = displayName)
-                            return dir
-                        pos := mm.Pos(0) + mm.Len(0)
-                    }
-                }
-            }
+            dirFromLocal := RegexLib.FindProfileDirInLocalState(txt, displayName)
+            if (dirFromLocal != "")
+                return dirFromLocal
         }
 
-        ; 2) Fallback: Preferences σε Default + Profile N
+        ; 2) Fallback: διατρέχουμε "Default" + "Profile N" και κοιτάμε Preferences
         candidates := ["Default"]
         Loop Files, base "*", "D" {
             d := A_LoopFileName
-            if RegExMatch(d, "^Profile\s+\d+$")
+            if RegexLib.IsProfileFolderName(d)
                 candidates.Push(d)
         }
         for _, cand in candidates {
             pref := base cand "\Preferences"
             if !FileExist(pref)
                 continue
-
             txt2 := ""
             try {
                 txt2 := FileRead(pref, "UTF-8")
             } catch as e {
                 txt2 := ""
             }
-
             if (txt2 = "")
                 continue
-
-            if RegExMatch(txt2, '"profile"\s*:\s*\{[^}]*"name"\s*:\s*"' esc '"')
-                return cand
-
-            if RegExMatch(txt2, '"name"\s*:\s*"' esc '"')
+            if RegexLib.PreferencesContainsProfileName(txt2, displayName)
                 return cand
         }
         return ""
@@ -109,10 +93,6 @@ class EdgeService {
                 return h
         return 0
     }
-
     _dirExist(path) => InStr(FileExist(path), "D") > 0
-
-    ; Ασφαλές regex-escape σε μία γραμμή
-    _regexEscape(str) => RegExReplace(str, "([\\.^$*+?()\\[\\]{}|])", "\\$1")
 }
 ; ==================== End Of File ====================
