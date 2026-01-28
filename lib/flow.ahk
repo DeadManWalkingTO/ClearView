@@ -10,7 +10,6 @@ class FlowController {
         this._running := false
         this._paused := false
         this._stopRequested := false
-        ; Πίνακες λιστών IDs (φορτώνονται από LoadIdLists)
         this.list1 := []
         this.list2 := []
     }
@@ -18,7 +17,6 @@ class FlowController {
     ; ---- Public API ----
     IsRunning() => this._running
 
-    ; Φόρτωση IDs από τα αρχεία (καλείται στην εκκίνηση από main.ahk)
     LoadIdLists() {
         this.list1 := this._readIdsFromFile(Settings.DATA_LIST_TXT)
         this.list2 := this._readIdsFromFile(Settings.DATA_RANDOM_TXT)
@@ -32,12 +30,9 @@ class FlowController {
         this._paused := false
         this._stopRequested := false
 
-        this.log.ShowTimed(
-            "Έναρξη",
-            Format("Ξεκινάει η ροή αυτοματισμού — έκδοση: { }", Settings.APP_VERSION),
-            "BH Automation — Έναρξη",
-            "Iconi"
-        )
+        this.log.ShowTimed("Έναρξη"
+            , Format("Ξεκινάει η ροή αυτοματισμού — έκδοση: {}", Settings.APP_VERSION)
+            , "BH Automation — Έναρξη", "Iconi")
         this.log.SetHeadline("▶️ Εκκίνηση Ροής…"), this.log.Write("▶️ Έναρξη Πατήθηκε — " Settings.APP_VERSION)
 
         try {
@@ -46,6 +41,7 @@ class FlowController {
             this.log.Write("❌ Σφάλμα: " e.Message)
             this.log.SetHeadline("❌ Σφάλμα: " e.Message)
         }
+
         this._running := false
         this._paused := false
         this._stopRequested := false
@@ -69,13 +65,12 @@ class FlowController {
         this._checkAbortOrPause()
         this.log.SetHeadline("🔎 Εύρεση Φακέλου Προφίλ…"), this.log.Write("🔎 Εύρεση Φακέλου Προφίλ Με Βάση Το Όνομα: " Settings.EDGE_PROFILE_NAME)
         profDir := this.edge.ResolveProfileDirByName(Settings.EDGE_PROFILE_NAME)
-        profileFound := (profDir != "")  ; σήμανση: βρέθηκε συγκεκριμένος φάκελος;
-
+        profileFound := (profDir != "")
         if (profDir = "") {
             this.log.SetHeadline("⚠️ Δεν Βρέθηκε Φάκελος Για: " Settings.EDGE_PROFILE_NAME)
             this.log.Write("⚠️ Ο Φάκελος Προφίλ Δεν Βρέθηκε — Θα Δοκιμάσω Με Χρήση Του Εμφανιζόμενου Ονόματος Ως Φάκελο")
             profArg := '--profile-directory="' Settings.EDGE_PROFILE_NAME '"'
-            warnMsg := Format('Δεν βρέθηκε φάκελος προφίλ για "{ }". Θα δοκιμάσω με: { }', Settings.EDGE_PROFILE_NAME, profArg)
+            warnMsg := Format('Δεν βρέθηκε φάκελος προφίλ για "{}". Θα δοκιμάσω με: {}', Settings.EDGE_PROFILE_NAME, profArg)
             this.log.ShowTimed("Προειδοποίηση Προφίλ", warnMsg, "BH Automation — Προειδοποίηση", "Icon!")
         } else {
             this.log.SetHeadline("📁 Βρέθηκε Φάκελος: " profDir), this.log.Write("📁 Φάκελος Προφίλ: " profDir)
@@ -98,26 +93,23 @@ class FlowController {
         Sleep(200)
         this.edge.StepDelay()
         this.log.SetHeadline("✅ Edge Έτοιμο (" Settings.EDGE_PROFILE_NAME ")"), this.log.Write("✅ Edge Ready")
-
-        ; Popup (T=3s)
-        readyMsg := Format('Edge έτοιμο για χρήση ("{ }").', Settings.EDGE_PROFILE_NAME)
+        readyMsg := Format('Edge έτοιμο για χρήση ("{}").', Settings.EDGE_PROFILE_NAME)
         this.log.ShowTimed("EdgeReady", readyMsg, "BH Automation — Edge", "Iconi")
         this.edge.StepDelay()
 
-        ; 3) Νέα καρτέλα (άρα το νέο παράθυρο έχει 2 tabs: default + νέα)
+        ; 3) Νέα καρτέλα
         this.edge.NewTab(hNew)
-        this.log.SetHeadline("➡️ Νέα Καρτέλα Ανοιχτή — Προκαταρκτικός καθαρισμός"), this.log.Write("➡️ Νέα Καρτέλα (Κενή)")
+        this.log.SetHeadline("➡️ Νέα Καρτέλα Ανοιχτή"), this.log.Write("➡️ Νέα Καρτέλα (Κενή)")
 
-        ; 3.1) ΠΡΩΤΑ: Κλείσιμο καρτελών/παραθύρων του ίδιου προφίλ (αν βρέθηκε)
+        ; 3.1) ΠΡΩΤΑ: Κλείσιμο άλλων παραθύρων ίδιου προφίλ (με PID mapping)
         if (profileFound) {
-            this.log.Write("🧹 Προκαταρκτικός καθαρισμός: κλείνω την «άλλη» καρτέλα στο νέο παράθυρο και όλα τα άλλα παράθυρα του ίδιου προφίλ.")
-            this.edge.CloseOtherTabsInNewWindow(hNew)
-            this.edge.CloseOtherWindowsOfProfile(profDir, hNew)
+            closed := this.edge.CloseOtherWindowsOfProfile(profDir, hNew)
+            this.log.Write("🧹 Προκαταρκτικός καθαρισμός: έκλεισα " closed " παράθυρο/α του ίδιου προφίλ.")
         } else {
-            this.log.Write("ℹ️ Δεν βρέθηκε φάκελος — παραλείπω προκαταρκτικό κλείσιμο καρτελών/παραθύρων.")
+            this.log.Write("ℹ️ Δεν βρέθηκε φάκελος — παραλείπω προκαταρκτικό κλείσιμο παραθύρων.")
         }
 
-        ; 3.2) ΕΠΕΙΤΑ: Επιλογή λίστας με πιθανότητα & τυχαίο id, πλοήγηση + play
+        ; 3.2) Επιλογή λίστας & πλοήγηση + play
         this._navigateWithRandomId(hNew)
 
         ; 4) Κλείσιμο/Παραμονή παραθύρου
@@ -141,7 +133,7 @@ class FlowController {
             txt := ""
         }
         if (txt != "") {
-            txt := StrReplace(txt, "`r") ; Normalize CRLF/CR/LF -> LF
+            txt := StrReplace(txt, "`r")
             for line in StrSplit(txt, "`n") {
                 id := Trim(line)
                 if (id != "")
@@ -155,28 +147,24 @@ class FlowController {
         prob := Settings.LIST1_PROB_PCT
         r := Random(0, 100)
         useList1 := (r < prob)
-
         sel := (useList1 ? this.list1 : this.list2)
         if (sel.Length = 0)
             sel := (useList1 ? this.list2 : this.list1)
-
         if (sel.Length = 0) {
             this.log.Write("⚠️ Καμία λίστα διαθέσιμη (list1/list2 κενές) — παραμένω στην κενή καρτέλα.")
             return
         }
-
         idx := Random(1, sel.Length)
         pick := sel[idx]
         url := "https://www.youtube.com/watch?v=" pick
 
-        this.log.Write(Format("🎲 Επιλέχθηκε λίστα: { } (rand={ }, prob={ }%), id={ }"
+        ; ΔΙΟΡΘΩΣΗ FORMAT: όλα σε μία γραμμή, χωρίς κενά μέσα στα {}.
+        this.log.Write(Format("🎲 Επιλέχθηκε λίστα: {} (rand={}, prob={}%), id={}"
             , (useList1 ? "list1" : "list2"), r, prob, pick))
 
-        ; Πλοήγηση
         this.edge.NavigateToUrl(hWnd, url)
         this.log.Write("🌐 Πλοήγηση σε: " url)
 
-        ; Focus & Play με PRE-CLICK (βλ. edge.PlayYouTube)
         this.edge.PlayYouTube(hWnd)
         this.log.Write("▶️ Αποστολή εντολής Play (k) με pre-click")
     }

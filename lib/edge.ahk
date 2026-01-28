@@ -13,11 +13,9 @@ class EdgeService {
     ResolveProfileDirByName(displayName) {
         if (Settings.PROFILE_DIR_FORCE != "")
             return Settings.PROFILE_DIR_FORCE
-
         base := EnvGet("LOCALAPPDATA") "\Microsoft\Edge\User Data\"
         if !this._dirExist(base)
             return ""
-
         ; 1) Από "Local State"
         localState := base "Local State"
         if FileExist(localState) {
@@ -31,7 +29,6 @@ class EdgeService {
             if (dirFromLocal != "")
                 return dirFromLocal
         }
-
         ; 2) Fallback: Default + Profile N / Preferences
         candidates := ["Default"]
         Loop Files, base "*", "D" {
@@ -99,57 +96,95 @@ class EdgeService {
         }
         if (cmd = "")
             return ""
-
-        ; Quoted: --profile-directory="Profile N" | "Default"
-        if RegExMatch(cmd, "--profile-directory=`"([^`"]+)`"", &m)
+        ; Quoted: --profile-directory="Profile N" / "Default"
+        if RegExMatch(cmd, "\-\-profile\-directory=\`"([^\`"]+)\`"", &m)
             return m[1]
-
-        ; Unquoted: --profile-directory=ProfileN | Default
-        if RegExMatch(cmd, "--profile-directory=([^\s]+)", &m)
+        ; Unquoted: --profile-directory=ProfileN / Default
+        if RegExMatch(cmd, "\-\-profile\-directory=([^\s]+)", &m)
             return m[1]
-
         return ""
+    }
+
+    ; ROBUST: Ανίχνευση προφίλ με ανάβαση γονέων
+    GetWindowProfileDirRobust(hWnd, maxDepth := 6) {
+        pd := this.GetWindowProfileDir(hWnd)
+        if (pd != "")
+            return pd
+        curPid := WinGetPID("ahk_id " hWnd)
+        depth := 0
+        while (depth < maxDepth) {
+            depth += 1
+            info := this._getProcessInfo(curPid)  ; { cmd, ppid }
+            if (info = 0)
+                break
+            cmd := info.cmd
+            if (cmd != "") {
+                if RegExMatch(cmd, "\-\-profile\-directory=\`"([^\`"]+)\`"", &mm)
+                    return mm[1]
+                if RegExMatch(cmd, "\-\-profile\-directory=([^\s]+)", &mm)
+                    return mm[1]
+            }
+            curPid := info.ppid
+            if (curPid = 0 || curPid = "")
+                break
+        }
+        return ""
+    }
+
+    ; --- ΝΕΟ: Επιστρέφει όλους τους browser-PIDs για ένα profileDir
+    GetBrowserPidsForProfile(profileDir) {
+        arr := []
+        try {
+            q := "SELECT ProcessId, CommandLine FROM Win32_Process WHERE Name='msedge.exe'"
+            for proc in ComObjGet("winmgmts:").ExecQuery(q) {
+                cmd := proc.CommandLine
+                ; Φιλτράρουμε τα child processes (έχουν --type=renderer/gpu/utility κ.λπ.)
+                if (cmd != "" && !RegExMatch(cmd, "\-\-type=")) {
+                    ; Εντοπισμός profile
+                    pd := ""
+                    if RegExMatch(cmd, "\-\-profile\-directory=\`"([^\`"]+)\`"", &m)
+                        pd := m[1]
+                    else if RegExMatch(cmd, "\-\-profile\-directory=([^\s]+)", &m)
+                        pd := m[1]
+                    if (pd != "" && pd = profileDir)
+                        arr.Push(proc.ProcessId)
+                }
+            }
+        } catch as e {
+            ; σιωπηλά
+        }
+        return arr
     }
 
     CloseOtherTabsInNewWindow(hWnd) {
         WinActivate("ahk_id " hWnd)
         WinWaitActive("ahk_id " hWnd, , 3)
-        Send("^+{Tab}")  ; στην «παλιά» καρτέλα
+        Send("^+{Tab}") ; στην «παλιά» καρτέλα
         Sleep(120)
-        Send("^{w}")     ; κλείσιμο
+        Send("^{w}") ; κλείσιμο
         Sleep(120)
         this.StepDelay()
     }
 
-    ; --- ΝΕΟ: Πολυπέρασμα κλεισίματος windows του ίδιου προφίλ (με fallback) ---
+    ; --- Κλείσιμο windows ίδιου προφίλ: βασισμένο σε PIDs browser-process ---
     CloseOtherWindowsOfProfile(profileDir, hKeep) {
-        ; Μέχρι 3 περάσματα για ανθεκτικότητα (modal prompts, slow-close)
-        passes := 3
+        ; Συγκεντρώνουμε τους browser-PIDs για το συγκεκριμένο profile
+        pids := this.GetBrowserPidsForProfile(profileDir)
+        if (pids.Length = 0)
+            return
+        ; Κλείνουμε μόνο windows που ανήκουν σε αυτούς τους PIDs
+        passes := 3, closedTotal := 0
         loop passes {
             closedOne := false
             all := WinGetList(this.sel)
-
             for _, h in all {
                 if (h = hKeep)
                     continue
-
-                pd := this.GetWindowProfileDir(h)
-                ; Η βασική σύγκριση: ίδιο profileDir
-                same := (pd != "" && pd = profileDir)
-
-                ; Fallback: όταν ΔΕΝ αναγνωρίζεται προφίλ από WMI/CommandLine
-                ; και έχει ενεργοποιηθεί η ρύθμιση CLOSE_WINDOWS_WHEN_PROFILE_UNKNOWN
-                if (!same && pd = "" && Settings.CLOSE_WINDOWS_WHEN_PROFILE_UNKNOWN) {
-                    ; Επιθετικό κλείσιμο: θεωρούμε ότι ανήκει στο ίδιο user data και το κλείνουμε.
-                    same := true
-                }
-
-                if (same) {
-                    ; Ευγενικό κλείσιμο παραθύρου (κλείνουν όλες οι καρτέλες του)
+                pid := WinGetPID("ahk_id " h)
+                if (this._pidInList(pid, pids)) {
                     WinClose("ahk_id " h)
                     WinWaitClose("ahk_id " h, , 3)
                     if WinExist("ahk_id " h) {
-                        ; Fallback: Ctrl+Shift+W
                         WinActivate("ahk_id " h)
                         WinWaitActive("ahk_id " h, , 2)
                         Send("^+w")
@@ -158,20 +193,21 @@ class EdgeService {
                     }
                     this.StepDelay()
                     closedOne := true
+                    closedTotal += 1
                 }
             }
-
-            ; Αν δεν έκλεισε τίποτα σε αυτό το πέρασμα, σταματάμε.
             if (!closedOne)
                 break
         }
+        ; Επιστρέφουμε πόσα έκλεισαν για logging
+        return closedTotal
     }
 
-    ; --- Πλοήγηση σε URL στην ενεργή καρτέλα ---
+    ; ---- Πλοήγηση σε URL στην ενεργή καρτέλα ----
     NavigateToUrl(hWnd, url) {
         WinActivate("ahk_id " hWnd)
         WinWaitActive("ahk_id " hWnd, , 3)
-        Send("^{l}")     ; focus address bar
+        Send("^{l}") ; focus address bar
         Sleep(120)
         Send(url)
         Sleep(120)
@@ -184,7 +220,7 @@ class EdgeService {
     FocusPage(hWnd) {
         WinActivate("ahk_id " hWnd)
         WinWaitActive("ahk_id " hWnd, , 3)
-        Send("^{F6}")    ; pane: page content (Edge)
+        Send("^{F6}") ; pane: page content (Edge)
         Sleep(120)
         this.StepDelay()
     }
@@ -201,20 +237,16 @@ class EdgeService {
     }
 
     PlayYouTube(hWnd, doSecondK := false) {
-        this.WaitForYouTubeTitle(hWnd)   ; best-effort
+        this.WaitForYouTubeTitle(hWnd) ; best-effort
         this.FocusPage(hWnd)
-
-        ; PRE-CLICK στο κέντρο του player
         CoordMode("Mouse", "Window")
         WinGetPos(, , &W, &H, "ahk_id " hWnd)
         x := Floor(W / 2), y := Floor(H * 0.45)
         Click(x, y)
         Sleep(150)
-
-        Send("k")     ; YouTube Play/Pause
+        Send("k") ; YouTube Play/Pause
         Sleep(250)
         this.StepDelay()
-
         if (doSecondK) {
             Send("k")
             Sleep(200)
@@ -223,6 +255,24 @@ class EdgeService {
     }
 
     ; ---- Internals ----
+    _getProcessInfo(pid) {
+        try {
+            for proc in ComObjGet("winmgmts:").ExecQuery("SELECT CommandLine, ParentProcessId FROM Win32_Process WHERE ProcessId=" pid) {
+                return { cmd: proc.CommandLine, ppid: proc.ParentProcessId }
+            }
+        } catch as e {
+            return 0
+        }
+        return 0
+    }
+
+    _pidInList(pid, arr) {
+        for _, p in arr
+            if (p = pid)
+                return true
+        return false
+    }
+
     _findNewWindow(beforeArr, afterArr) {
         seen := Map()
         for _, h in beforeArr

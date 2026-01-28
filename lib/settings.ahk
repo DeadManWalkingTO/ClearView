@@ -1,9 +1,10 @@
 ﻿; ==================== lib/settings.ahk ====================
 #Requires AutoHotkey v2.0
+
 class Settings {
     ; ------- Μεταδεδομένα / Εφαρμογή -------
     static APP_TITLE := "BH Automation — Edge/Chryseis"
-    static APP_VERSION := "v2.8.2"
+    static APP_VERSION := "v2.9.2"
 
     ; ------- Συμπεριφορά UI / Popups -------
     static POPUP_T := 3
@@ -26,8 +27,11 @@ class Settings {
     ; ------- Πιθανότητα επιλογής list1 (0–100) -------
     static LIST1_PROB_PCT := 50
 
-    ; ------- ΝΕΟ: Κλείσιμο windows με "άγνωστο" προφίλ (WMI/CommandLine κενό) -------
-    ; Ενεργό μόνο όταν έχουμε βρει σωστό προφίλ για το νέο παράθυρο.
-    static CLOSE_WINDOWS_WHEN_PROFILE_UNKNOWN := true
+    ; ------- Πολιτική σε άγνωστο προφίλ (ασφαλής) -------
+    static CLOSE_WINDOWS_WHEN_PROFILE_UNKNOWN := false
+
+    ; ------- (Απενεργοποιημένο) FileLock/Handles detection -------
+    static USE_HANDLE_PROFILE_DETECT := false
+    static HANDLE_EXE := ""
 }
 ; ==================== End Of File ====================
