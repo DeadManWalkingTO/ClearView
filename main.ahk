@@ -70,12 +70,10 @@ Log("Εφαρμογή ξεκίνησε.")
 ; ===== Βοηθητικές (GUI) =====
 GuiReflow() {
     global App, btnStart, btnPause, btnStop, txtHead, txtLog
-    ; Απλό flow: κουμπιά επάνω, head κάτω από αυτά, log από κάτω ως fill
-    ; Υπολογισμός πλάτους/ύψους παραθύρου
     App.GetPos(, , &W, &H)
     margin := 12
 
-    ; Στοιχεία: 3 κουμπιά στην ίδια γραμμή ξεκινούν στο margin
+    ; Κουμπιά
     btnStart.Move(margin, margin, 90, 28)
     btnPause.Move(margin + 90 + 8, margin, 110, 28)
     btnStop.Move(margin + 90 + 8 + 110 + 8, margin, 90, 28)
@@ -83,7 +81,7 @@ GuiReflow() {
     ; Headline
     txtHead.Move(margin, margin + 28 + 10, W - 2*margin, 24)
 
-    ; Log
+    ; Log (γεμίζει το υπόλοιπο)
     topLog := margin + 28 + 10 + 24 + 6
     txtLog.Move(margin, topLog, W - 2*margin, H - topLog - margin - 24)
 }
@@ -137,7 +135,7 @@ OnStart() {
     ; Εκτέλεση της ροής (blocking, αλλά με πολλά Sleep ώστε να δουλεύει το GUI)
     try {
         RunFlow()
-    } catch e {
+    } catch as e {
         Log("Σφάλμα: " e.Message)
     }
     gRunning := false
@@ -147,7 +145,7 @@ OnStart() {
 }
 
 OnPauseResume() {
-    global gRunning, gPaused
+    global gRunning, gPaused, btnPause
     if !gRunning {
         SetHeadline("Δεν εκτελείται ροή.")
         return
@@ -230,7 +228,6 @@ CheckAbortOrPause() {
     global gPaused, gStopRequested
     while gPaused {
         Sleep(150)
-        ; επιτρέπει στο GUI να ανταποκριθεί
     }
     if gStopRequested
         throw Error("Stopped by user")
@@ -373,5 +370,4 @@ SendShiftN() {
 
 ; ===== Helpers =====
 DirExist_(path) => InStr(FileExist(path), "D") > 0
-
 RegexEscape(str) => RegExReplace(str, "([\\.^$*+?()\\[\\]{}|])", "\\$1")
