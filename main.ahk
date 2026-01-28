@@ -7,7 +7,7 @@ SetWorkingDir(A_ScriptDir)
 
 ; ===== Μεταδεδομένα εφαρμογής =====
 APP_TITLE   := "BH Automation — Edge/Chryseis"
-APP_VERSION := "v1.0.18"         ; bump: replace MD :emoji: with Unicode icons in logs
+APP_VERSION := "v1.0.19"         ; bump: replace default log icon • with ▪ (fixed-width-friendly)
 
 ; ===== Ρυθμίσεις / Επιλογές =====
 EDGE_WIN     := "ahk_exe msedge.exe"
@@ -130,26 +130,26 @@ ToTitleCase(text) {
 ; Επιλογή Unicode icon ανά κατηγορία μηνύματος (input: Title Case string)
 GetLogIconUnicode(msgTitleCase) {
     ; Πιο συγκεκριμένα πρώτα
-    if InStr(msgTitleCase, "Popup:")                 ; popup ενημερώσεων
+    if InStr(msgTitleCase, "Popup:")
         return "ℹ️"    ; information
-    if InStr(msgTitleCase, "Profile Warn")           ; προειδοποίηση
+    if InStr(msgTitleCase, "Profile Warn")
         return "⚠️"
-    if InStr(msgTitleCase, "Open Edge New Window")   ; «γρήγορη κίνηση»
+    if InStr(msgTitleCase, "Open Edge New Window")
         return "⏩"
-    if InStr(msgTitleCase, "New Tab")                ; νέα καρτέλα
+    if InStr(msgTitleCase, "New Tab")
         return "➡️"
-    if InStr(msgTitleCase, "Edge Ready")             ; έτοιμο/OK
+    if InStr(msgTitleCase, "Edge Ready")
         return "✅"
-    if InStr(msgTitleCase, "Cycle Done")             ; ολοκλήρωση
+    if InStr(msgTitleCase, "Cycle Done")
         return "✨"
-    if InStr(msgTitleCase, "Paused")                 ; παύση
+    if InStr(msgTitleCase, "Paused")
         return "⏸️"
-    if InStr(msgTitleCase, "Stop Requested")         ; stop
+    if InStr(msgTitleCase, "Stop Requested")
         return "❌"
     if InStr(msgTitleCase, "Start Pressed") || InStr(msgTitleCase, "Resumed")
-        return "▶️"    ; έναρξη/συνέχιση
-    ; Προεπιλογή
-    return "•"
+        return "▶️"
+    ; Προεπιλογή (ΑΝΤΙ για •): μικρό μαύρο τετράγωνο ▪ για καθαρή, σταθερή εμφάνιση
+    return "▪"
 }
 
 ; Reverse-chronological Log (νεότερα επάνω), Title Case, single-line, με Unicode icon μετά την ώρα
