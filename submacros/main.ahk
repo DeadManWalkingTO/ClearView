@@ -36,14 +36,14 @@ flowCtl := FlowController(logInst, edgeSvc, Settings)
 
 ; ---- Boot Logs ----
 logInst.Write("ℹ️ Έναρξη Εφαρμογής.")
-logInst.Write("ℹ️ Έκδοση: " Settings.APP_VERSION)
-logInst.Write("ℹ️ Εκτελέσιμο Edge: " Settings.EDGE_EXE)
-logInst.Write("ℹ️ Προφίλ: " Settings.EDGE_PROFILE_NAME)
-logInst.Write("ℹ️ Διατήρηση Παραθύρου: " (Settings.KEEP_EDGE_OPEN ? "Ναι" : "Όχι"))
-logInst.Write("ℹ️ Paths: list=" Settings.DATA_LIST_TXT " - random=" Settings.DATA_RANDOM_TXT)
-logInst.Write("ℹ️ Πιθανότητα list1: " Settings.LIST1_PROB_PCT "%")
-logInst.Write("ℹ️ Close Other Windows: " (Settings.CLOSE_ALL_OTHER_WINDOWS ? "True" : "False"))
-logInst.Write("ℹ️ CDP Enabled: " (Settings.CDP_ENABLED ? "True" : "False") ", Port: " Settings.CDP_PORT)
+logInst.Write(Format("ℹ️ Έκδοση: {}", Settings.APP_VERSION))
+logInst.Write(Format("ℹ️ Εκτελέσιμο Edge: {}", Settings.EDGE_EXE))
+logInst.Write(Format("ℹ️ Προφίλ: {}", Settings.EDGE_PROFILE_NAME))
+logInst.Write(Format("ℹ️ Διατήρηση Παραθύρου: {}", (Settings.KEEP_EDGE_OPEN ? "Ναι" : "Όχι")))
+logInst.Write(Format("ℹ️ Paths: list={} - random={}", Settings.DATA_LIST_TXT, Settings.DATA_RANDOM_TXT))
+logInst.Write(Format("ℹ️ Πιθανότητα list1: {}%", Settings.LIST1_PROB_PCT))
+logInst.Write(Format("ℹ️ Close Other Windows: {}", (Settings.CLOSE_ALL_OTHER_WINDOWS ? "True" : "False")))
+logInst.Write(Format("ℹ️ CDP Enabled: {}, Port: {}", (Settings.CDP_ENABLED ? "True" : "False"), Settings.CDP_PORT))
 
 ; Φόρτωση λιστών στην εκκίνηση
 flowCtl.LoadIdLists()
