@@ -11,9 +11,8 @@ SetWorkingDir(A_ScriptDir)
 #Include ..\lib\edge.ahk      ; class EdgeService
 #Include ..\lib\flow.ahk      ; class FlowController
 
-; ---- Φόρτωση INI (δίπλα στο main.ahk) ----
-iniPath := A_ScriptDir "\settings.ini"
-Settings.LoadFromIni(iniPath)
+; ---- Χωρίς INI: SSOT από το lib/settings.ahk ----
+; Οι ρυθμίσεις προέρχονται αποκλειστικά από το Settings.*
 
 ; ---- GUI ----
 App := Gui("+AlwaysOnTop +Resize", Settings.APP_TITLE " — " Settings.APP_VERSION)
