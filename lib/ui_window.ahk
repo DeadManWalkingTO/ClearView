@@ -91,7 +91,7 @@ class UiWindow {
       c["udLoopMax"] := this._app.Add("UpDown", "Range1-25 0x80", defMaxMin) ; buddy left
 
       c["txtHead"] := this._app.Add("Text", "xm y+10 w760 h24 cBlue", "Έτοιμο. " Settings.APP_VERSION)
-      c["txtLog"] := this._app.Add("Edit", "xm y+6 w860 h360 ReadOnly Multi -Wrap +VScroll", "")
+      c["txtLog"] := this._app.Add("Edit", "xm y+6 w10 h10 ReadOnly Multi -Wrap +VScroll", "")
       c["helpLine"] := this._app.Add("Text", "xm y+6 cGray", "Η εύρεση διάρκειας έχει αφαιρεθεί πλήρως.")
     } catch Error as _eControls {
       MsgBox("Αποτυχία σύνθεσης στοιχείων GUI.", "Σφάλμα", "Iconx")
