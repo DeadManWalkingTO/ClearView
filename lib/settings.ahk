@@ -1,10 +1,9 @@
 ; ==================== lib/settings.ahk ====================
 #Requires AutoHotkey v2.0
-
 class Settings {
   ; --- Μεταδεδομένα / Εφαρμογή ---
   static APP_TITLE := "BH Automation — Edge/Chryseis"
-  static APP_VERSION := "v3.6.5"
+  static APP_VERSION := "v3.6.6"
 
   ; --- UI / Popups ---
   static POPUP_T := 3
@@ -39,8 +38,8 @@ class Settings {
   static CLOSE_ALL_OTHER_WINDOWS := false
 
   ; --- Continuous loop (fallback σε λεπτά) ---
-  static LOOP_MIN_MINUTES := 5
-  static LOOP_MAX_MINUTES := 10
+  static LOOP_MIN_MINUTES := 2
+  static LOOP_MAX_MINUTES := 5
 
   ; --- Continuous loop (σε milliseconds, για ακριβή logs) ---
   static LOOP_MIN_MS := 2 * 60 * 1000
@@ -52,5 +51,4 @@ class Settings {
   static SEND_K_KEY := false
   static SIMPLE_PLAY_Y_FACTOR := 0.50
 }
-
 ; ==================== End Of File ====================
