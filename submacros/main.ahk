@@ -21,14 +21,12 @@ try {
   ; FIXED SIZE from Settings: set BOTH MinSize and MaxSize to same values
   guiW := Settings.GUI_MIN_W + 0
   guiH := Settings.GUI_MIN_H + 0
-
   if (guiW < 200) {
     guiW := 200
   }
   if (guiH < 200) {
     guiH := 200
   }
-
   App.Opt("+MinSize" guiW "x" guiH)
   App.Opt("+MaxSize" guiW "x" guiH)
 } catch Error as _eGui {
@@ -47,6 +45,10 @@ try {
   txtProbTitle := App.Add("Text", "xm y+10", "Πιθανότητα επιλογής list1 (%):")
   sldProb := App.Add("Slider", "xm y+2 w300 Range0-100 TickInterval10", Settings.LIST1_PROB_PCT)
   lblProb := App.Add("Text", "x+8 yp", "list1: " Settings.LIST1_PROB_PCT "%")
+
+  ; ΝΕΟ: Checkbox δίπλα στο label ποσοστού
+  chkClickToPlay := App.Add("CheckBox", "x+14 yp", "Click To Play")
+  chkClickToPlay.Value := (Settings.CLICK_TO_PLAY ? 1 : 0)
 
   txtHead := App.Add("Text", "xm y+10 w760 h24 cBlue", "Έτοιμο. " Settings.APP_VERSION)
   txtLog := App.Add("Edit", "xm y+6 w860 h360 ReadOnly Multi -Wrap +VScroll", "")
@@ -79,7 +81,6 @@ global _currentMonitorIdx := 0
 
 GetMonitorIndexForWindow() {
   global App
-  ; Εντοπισμός monitor με βάση το κέντρο του παραθύρου
   try {
     App.GetPos(&winX, &winY, &W, &H)
   } catch Error as _ePos {
@@ -126,7 +127,6 @@ PositionBottomRight(margin := 10) {
     _currentMonitorIdx := monIdx
 
     MonitorGetWorkArea(monIdx, &waL, &waT, &waR, &waB)
-
     App.GetPos(, , &W, &H)
 
     x := waR - W - margin
@@ -184,6 +184,7 @@ try {
   logInst.Write(Format("ℹ️ Διατήρηση Παραθύρου: {}", (Settings.KEEP_EDGE_OPEN ? "Ναι" : "Όχι")))
   logInst.Write(Format("ℹ️ Paths: list={} - random={}", Settings.DATA_LIST_TXT, Settings.DATA_RANDOM_TXT))
   logInst.Write(Format("ℹ️ Πιθανότητα list1: {}%", Settings.LIST1_PROB_PCT))
+  logInst.Write(Format("ℹ️ ClickToPlay: {}", (Settings.CLICK_TO_PLAY ? "True" : "False")))
   logInst.Write(Format("ℹ️ Close Other Windows: {}", (Settings.CLOSE_ALL_OTHER_WINDOWS ? "True" : "False")))
   flowCtl.LoadIdLists()
 } catch Error as _eBoot {
@@ -199,6 +200,9 @@ try {
   btnClear.OnEvent("Click", (*) => OnClearLogs())
   btnExit.OnEvent("Click", (*) => OnExitApp())
   sldProb.OnEvent("Change", SliderProb_Changed)
+
+  ; ΝΕΟ: wire checkbox
+  chkClickToPlay.OnEvent("Click", ChkClickToPlay_Changed)
 } catch Error as _eWire {
   ; no-op
 }
@@ -300,9 +304,20 @@ SliderProb_Changed(ctrl, info) {
   }
 }
 
+; ΝΕΟ: Checkbox handler
+ChkClickToPlay_Changed(ctrl, info := 0) {
+  global logInst
+  try {
+    Settings.CLICK_TO_PLAY := (ctrl.Value = 1)
+    logInst.Write("☑️ Click To Play: " (Settings.CLICK_TO_PLAY ? "ON" : "OFF"))
+  } catch Error as _eChk {
+    ; no-op
+  }
+}
+
 GuiReflow() {
   global App, btnStart, btnPause, btnStop, btnCopy, btnClear, btnExit
-  global txtProbTitle, sldProb, lblProb
+  global txtProbTitle, sldProb, lblProb, chkClickToPlay
   global txtHead, txtLog, helpLine
 
   try {
@@ -323,7 +338,12 @@ GuiReflow() {
 
     sldY := probY + 20 + 4
     sldProb.Move(lMargin, sldY, 300, 24)
-    lblProb.Move(lMargin + 300 + 8, sldY, 140, 24)
+
+    lblX := lMargin + 300 + 8
+    lblProb.Move(lblX, sldY, 140, 24)
+
+    ; ΝΕΟ: checkbox δίπλα στο label ποσοστού
+    chkClickToPlay.Move(lblX + 140 + 12, sldY, 160, 24)
 
     ; Headline κάτω από πιθανότητα
     headY := sldY + 24 + 10

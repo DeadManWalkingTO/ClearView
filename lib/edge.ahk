@@ -15,6 +15,7 @@ class EdgeService {
     if (Settings.PROFILE_DIR_FORCE != "") {
       return Settings.PROFILE_DIR_FORCE
     }
+
     c := RegexLib.Chars
     base := EnvGet("LOCALAPPDATA") . c.BS "Microsoft" c.BS "Edge" c.BS "User Data" c.BS
     if (!this._dirExist(base)) {
@@ -167,20 +168,19 @@ class EdgeService {
   ; ---------------- Simple Play ----------------
   /**
    * Απλοποιημένο Play για YouTube:
-   * WinActivate → WinMaximize → (προαιρετικά 1× Ctrl+F6) → click center → 'k'
+   * WinActivate → WinMaximize → (προαιρετικά 1× Ctrl+F6) → (προαιρετικό click) → 'k'
    * @param {Integer} hWnd
-   * @param {Object}  logger (optional)
+   * @param {Object} logger (optional)
    */
   PlayYouTubeSimple(hWnd, logger := 0) {
     try {
       if (logger) {
         try {
-          logger.Write("🎯 SimplePlay: WinActivate → Maximize → (optional focus) → CenterClick → (optional 'k')")
+          logger.Write("🎯 SimplePlay: WinActivate → Maximize → (optional focus) → (optional click) → (optional 'k')")
         } catch Error as _eLog0 {
           ; no-op
         }
       }
-
 
       ; 1) Activate/Maximize
       WinActivate("ahk_id " hWnd)
@@ -208,31 +208,52 @@ class EdgeService {
         ; no-op
       }
 
-      ; 3) Click στο κέντρο ή σε καθορισμένο ύψος
-      CoordMode("Mouse", "Window")
-      WinGetPos(, , &W, &H, "ahk_id " hWnd)
-      cx := Floor(W / 2)
-
-      ; Αν υπάρχει Y_FACTOR (0..1), το χρησιμοποιούμε, αλλιώς ακριβές κέντρο.
-      yFactor := 0.50
+      ; 3) Προαιρετικό Click για Play (ΝΕΟ: ελέγχεται από Settings.CLICK_TO_PLAY)
       try {
-        yFactor := Settings.SIMPLE_PLAY_Y_FACTOR + 0
-      } catch Error as _eYF {
-        yFactor := 0.50
-      }
-      if (yFactor < 0) {
-        yFactor := 0
-      }
-      if (yFactor > 1) {
-        yFactor := 1
+        if (Settings.CLICK_TO_PLAY) {
+          CoordMode("Mouse", "Window")
+          WinGetPos(, , &W, &H, "ahk_id " hWnd)
+          cx := Floor(W / 2)
+
+          yFactor := 0.50
+          try {
+            yFactor := Settings.SIMPLE_PLAY_Y_FACTOR + 0
+          } catch Error as _eYF {
+            yFactor := 0.50
+          }
+          if (yFactor < 0) {
+            yFactor := 0
+          }
+          if (yFactor > 1) {
+            yFactor := 1
+          }
+
+          cy := Floor(H * yFactor)
+          MoveMouseRandom4(cx, cy)
+          Click(cx, cy)
+          Sleep(150)
+
+          if (logger) {
+            try {
+              logger.Write("🖱️ SimplePlay: click εκτελέστηκε (CLICK_TO_PLAY=true)")
+            } catch Error as _eLogClick {
+              ; no-op
+            }
+          }
+        } else {
+          if (logger) {
+            try {
+              logger.Write("▶️ SimplePlay: παράλειψη click (CLICK_TO_PLAY=false, υποθέτω autoplay)")
+            } catch Error as _eLogNoClick {
+              ; no-op
+            }
+          }
+        }
+      } catch Error as _eClick {
+        ; no-op
       }
 
-      cy := Floor(H * yFactor)
-      MoveMouseRandom4(cx, cy)
-      Click(cx, cy)
-      Sleep(150)
-
-      ; 4) 'k' για Play/Pause
+      ; 4) 'k' για Play/Pause (όπως πριν)
       if (Settings.SEND_K_KEY) {
         Send("k")
         Sleep(200)
@@ -246,7 +267,6 @@ class EdgeService {
         }
       }
 
-      ; Μικρή σταθεροποίηση
       this.StepDelay()
     } catch Error as _e {
       if (logger) {
@@ -279,4 +299,5 @@ class EdgeService {
     Sleep(Settings.EDGE_STEP_DELAY_MS)
   }
 }
+
 ; ==================== End Of File ====================
