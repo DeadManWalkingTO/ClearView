@@ -16,14 +16,18 @@ class UiWindow {
     try {
       this._app := Gui("+AlwaysOnTop -Resize -MaximizeBox", AppTitle)
       this._app.SetFont("s10", "Segoe UI")
+
       guiW := Settings.GUI_MIN_W + 0
       guiH := Settings.GUI_MIN_H + 0
+
       if (guiW < 200) {
         guiW := 200
       }
+
       if (guiH < 200) {
         guiH := 200
       }
+
       this._app.Opt("+MinSize" guiW "x" guiH)
       this._app.Opt("+MaxSize" guiW "x" guiH)
     } catch Error as _eGui {
@@ -35,6 +39,7 @@ class UiWindow {
   AddControls() {
     try {
       c := this._controls
+
       c["btnStart"] := this._app.Add("Button", "xm ym w90 h28", "Έναρξη")
       c["btnPause"] := this._app.Add("Button", "x+8 yp w110 h28", "Παύση")
       c["btnStop"] := this._app.Add("Button", "x+8 yp w90 h28", "Τερματισμός")
@@ -48,23 +53,31 @@ class UiWindow {
 
       c["chkClickToPlay"] := this._app.Add("CheckBox", "x+14 yp", "Click To Play")
       try {
-        c["chkClickToPlay"].Value := (Settings.CLICK_TO_PLAY ? 1 : 0)
+        if (Settings.CLICK_TO_PLAY) {
+          c["chkClickToPlay"].Value := 1
+        } else {
+          c["chkClickToPlay"].Value := 0
+        }
       } catch Error as _eInitChk {
         c["chkClickToPlay"].Value := 1
       }
 
       ; Defaults λεπτών από *_MS ή fallback σε *_MINUTES
-      defMinMin := 0, defMaxMin := 0
+      defMinMin := 0
+      defMaxMin := 0
+
       try {
         defMinMin := Floor((Settings.LOOP_MIN_MS + 0) / 60000)
       } catch Error as _eL1 {
         defMinMin := 0
       }
+
       try {
         defMaxMin := Floor((Settings.LOOP_MAX_MS + 0) / 60000)
       } catch Error as _eL2 {
         defMaxMin := 0
       }
+
       if (defMinMin <= 0) {
         try {
           defMinMin := Settings.LOOP_MIN_MINUTES + 0
@@ -72,6 +85,7 @@ class UiWindow {
           defMinMin := 5
         }
       }
+
       if (defMaxMin <= 0) {
         try {
           defMaxMin := Settings.LOOP_MAX_MINUTES + 0
@@ -79,11 +93,15 @@ class UiWindow {
           defMaxMin := 10
         }
       }
+
       if (defMaxMin < defMinMin) {
-        t := defMinMin, defMinMin := defMaxMin, defMaxMin := t
+        t := defMinMin
+        defMinMin := defMaxMin
+        defMaxMin := t
       }
 
-      c["txtLoopTitle"] := this._app.Add("Text", "x+14 yp", "Διάστημα (λεπτά): από")
+      ; Μικρότερο κείμενο (όπως ζητήθηκε)
+      c["txtLoopTitle"] := this._app.Add("Text", "x+14 yp", "Διάστημα (λεπτά):")
       c["edtLoopMin"] := this._app.Add("Edit", "x+6 yp w40 Limit2")
       c["udLoopMin"] := this._app.Add("UpDown", "Range1-25 0x80", defMinMin) ; buddy left
       c["txtLoopTo"] := this._app.Add("Text", "x+6 yp", "έως")
@@ -91,7 +109,10 @@ class UiWindow {
       c["udLoopMax"] := this._app.Add("UpDown", "Range1-25 0x80", defMaxMin) ; buddy left
 
       c["txtHead"] := this._app.Add("Text", "xm y+10 w760 h24 cBlue", "Έτοιμο. " Settings.APP_VERSION)
+
+      ; Placeholder μεγέθη — τελικό μέγεθος στο GuiReflow()
       c["txtLog"] := this._app.Add("Edit", "xm y+6 w10 h10 ReadOnly Multi -Wrap +VScroll", "")
+
       c["helpLine"] := this._app.Add("Text", "xm y+6 cGray", "Η εύρεση διάρκειας έχει αφαιρεθεί πλήρως.")
     } catch Error as _eControls {
       MsgBox("Αποτυχία σύνθεσης στοιχείων GUI.", "Σφάλμα", "Iconx")
@@ -110,22 +131,39 @@ class UiWindow {
   GuiReflow() {
     try {
       this._app.GetPos(, , &W, &H)
-      lMargin := 12, rMargin := 12, topMargin := 12, gap := 8
-      x := lMargin, y := topMargin
+
+      lMargin := 12
+      rMargin := 12
+      topMargin := 12
+      gap := 8
+
+      x := lMargin
+      y := topMargin
       c := this._controls
 
-      c["btnStart"].Move(x, y, 90, 28), x += 90 + gap
-      c["btnPause"].Move(x, y, 110, 28), x += 110 + gap
-      c["btnStop"].Move(x, y, 90, 28), x += 90 + gap
-      c["btnCopy"].Move(x, y, 110, 28), x += 110 + gap
-      c["btnClear"].Move(x, y, 110, 28), x += 110 + gap
+      ; --- Πάνω σειρά κουμπιών ---
+      c["btnStart"].Move(x, y, 90, 28)
+      x += 90 + gap
+
+      c["btnPause"].Move(x, y, 110, 28)
+      x += 110 + gap
+
+      c["btnStop"].Move(x, y, 90, 28)
+      x += 90 + gap
+
+      c["btnCopy"].Move(x, y, 110, 28)
+      x += 110 + gap
+
+      c["btnClear"].Move(x, y, 110, 28)
+      x += 110 + gap
+
       c["btnExit"].Move(x, y, 90, 28)
 
+      ; --- Γραμμή τίτλου πιθανότητας + slider ---
       probY := y + 28 + 10
       c["txtProbTitle"].Move(lMargin, probY, W - lMargin - rMargin, 20)
-      sldY := probY + 20 + 4
 
-      ; Slider 150 px
+      sldY := probY + 20 + 4
       c["sldProb"].Move(lMargin, sldY, 150, 24)
 
       ; Label "list1: X%" (AutoSize)
@@ -133,7 +171,11 @@ class UiWindow {
       c["lblProb"].Move(lblX, sldY)
 
       ; Πραγματικό πλάτος label
-      lbx := lblX, lby := sldY, lbw := 0, lbh := 0
+      lbx := lblX
+      lby := sldY
+      lbw := 0
+      lbh := 0
+
       try {
         c["lblProb"].GetPos(&lbx, &lby, &lbw, &lbh)
       } catch Error as _eGetLbl {
@@ -141,12 +183,19 @@ class UiWindow {
         lbh := 0
       }
 
-      ; Checkbox αμέσως μετά το label — AutoSize (χωρίς fixed width)
-      chkX := (lbw > 0) ? (lbx + lbw + 12) : (lblX + 12)
-      c["chkClickToPlay"].Move(chkX, sldY)  ; <-- Χωρίς width/height
+      ; Checkbox μετά το label — AutoSize
+      chkX := lblX + 12
+      if (lbw > 0) {
+        chkX := lbx + lbw + 12
+      }
+      c["chkClickToPlay"].Move(chkX, sldY)
 
-      ; Μέτρα πραγματικό πλάτος checkbox
-      ckx := chkX, cky := sldY, ckw := 0, ckh := 0
+      ; Πραγματικό μέγεθος checkbox
+      ckx := chkX
+      cky := sldY
+      ckw := 0
+      ckh := 0
+
       try {
         c["chkClickToPlay"].GetPos(&ckx, &cky, &ckw, &ckh)
       } catch Error as _eGetChk {
@@ -154,42 +203,168 @@ class UiWindow {
         ckh := 24
       }
 
-      ; Label "Διάστημα (λεπτά): από" — AutoSize
+      ; --- Γραμμή "Διάστημα (λεπτά)" με κοινό ύψος -------------------------
       loopX := ckx + ckw + 12
       loopY := sldY
-      c["txtLoopTitle"].Move(loopX, loopY)
 
-      ; Πραγματικό πλάτος label "Διάστημα..."
-      ltx := loopX, lty := loopY, ltw := 0, lth := 0
+      ; 1) Μετρήσεις αρχικών υψών (πριν τα Move)
+      ltx0 := loopX
+      lty0 := loopY
+      ltw0 := 0
+      lth0 := 0
       try {
-        c["txtLoopTitle"].GetPos(&ltx, &lty, &ltw, &lth)
-      } catch Error as _eGetLbl2 {
-        ltw := 130
-        lth := 24
+        c["txtLoopTitle"].GetPos(&ltx0, &lty0, &ltw0, &lth0)
+      } catch Error as _ {
+        lth0 := 24
       }
 
-      ; Edit/UpDown αμέσως μετά το label
-      loopX := loopX + ltw + 6
-      c["edtLoopMin"].Move(loopX, loopY, 40, 24)
-      loopX += 40 + 6
-      c["txtLoopTo"].Move(loopX, loopY, 26, 24)
-      loopX += 26 + 6
-      c["edtLoopMax"].Move(loopX, loopY, 40, 24)
+      emx0 := loopX + 1
+      emy0 := loopY
+      emw0 := 0
+      emh0 := 0
+      try {
+        c["edtLoopMin"].GetPos(&emx0, &emy0, &emw0, &emh0)
+      } catch Error as _ {
+        emh0 := 24
+      }
 
-      headY := sldY + 24 + 10
+      umx0 := loopX + 1
+      umy0 := loopY
+      umw0 := 0
+      umh0 := 0
+      try {
+        c["udLoopMin"].GetPos(&umx0, &umy0, &umw0, &umh0)
+      } catch Error as _ {
+        umh0 := 24
+      }
+
+      ttx0 := loopX + 1
+      tty0 := loopY
+      ttw0 := 0
+      tth0 := 0
+      try {
+        c["txtLoopTo"].GetPos(&ttx0, &tty0, &ttw0, &tth0)
+      } catch Error as _ {
+        tth0 := 24
+      }
+
+      eax0 := loopX + 1
+      eay0 := loopY
+      eaw0 := 0
+      eah0 := 0
+      try {
+        c["edtLoopMax"].GetPos(&eax0, &eay0, &eaw0, &eah0)
+      } catch Error as _ {
+        eah0 := 24
+      }
+
+      uax0 := loopX + 1
+      uay0 := loopY
+      uaw0 := 0
+      uah0 := 0
+      try {
+        c["udLoopMax"].GetPos(&uax0, &uay0, &uaw0, &uah0)
+      } catch Error as _ {
+        uah0 := 24
+      }
+
+      commonH := lth0
+      if (emh0 > commonH) {
+        commonH := emh0
+      }
+      if (umh0 > commonH) {
+        commonH := umh0
+      }
+      if (tth0 > commonH) {
+        commonH := tth0
+      }
+      if (eah0 > commonH) {
+        commonH := eah0
+      }
+      if (uah0 > commonH) {
+        commonH := uah0
+      }
+      if (commonH < 20) {
+        commonH := 24
+      }
+
+      ; 2) Μετακίνηση με κοινό ύψος
+      c["txtLoopTitle"].Move(loopX, loopY) ; AutoSize
+      ltx := loopX
+      lty := loopY
+      ltw := 0
+      lth := 0
+      try {
+        c["txtLoopTitle"].GetPos(&ltx, &lty, &ltw, &lth)
+      } catch Error as _ {
+        ltw := 130
+        lth := commonH
+      }
+      c["txtLoopTitle"].Move(loopX, loopY, , commonH)
+
+      loopX := loopX + ltw + 6
+      c["edtLoopMin"].Move(loopX, loopY, 40, commonH)
+
+      edMinX := loopX
+      edMinY := loopY
+      edMinW := 40
+      edMinH := commonH
+      try {
+        c["edtLoopMin"].GetPos(&edMinX, &edMinY, &edMinW, &edMinH)
+      } catch Error as _ {
+        edMinW := 40
+        edMinH := commonH
+      }
+
+      udMinW := 16
+      udMinH := commonH
+      udMinX := edMinX + edMinW
+      c["udLoopMin"].Move(udMinX, loopY, udMinW, udMinH)
+
+      loopX := loopX + 40 + udMinW + 6
+      c["txtLoopTo"].Move(loopX, loopY, , commonH)
+
+      loopX := loopX + 26 + 6
+      c["edtLoopMax"].Move(loopX, loopY, 40, commonH)
+
+      edMaxX := loopX
+      edMaxY := loopY
+      edMaxW := 40
+      edMaxH := commonH
+      try {
+        c["edtLoopMax"].GetPos(&edMaxX, &edMaxY, &edMaxW, &edMaxH)
+      } catch Error as _ {
+        edMaxW := 40
+        edMaxH := commonH
+      }
+
+      udMaxW := 16
+      udMaxH := commonH
+      udMaxX := edMaxX + edMaxW
+      c["udLoopMax"].Move(udMaxX, loopY, udMaxW, udMaxH)
+
+      ; --- Επικεφαλίδα & βοηθητική γραμμή ---
+      headY := loopY + commonH + 10
       c["txtHead"].Move(lMargin, headY, W - lMargin - rMargin, 24)
 
       helpH := 20
       helpY := H - topMargin - helpH
       c["helpLine"].Move(lMargin, helpY, W - lMargin - rMargin, helpH)
 
+      ; --- Περιοχή Log ---
       topLog := headY + 24 + 6
       bottomGap := 6
       logH := (helpY - bottomGap) - topLog
+
       if (logH < 0) {
         logH := 0
       }
-      c["txtLog"].Move(lMargin, topLog, W - lMargin - rMargin, logH)
+
+      wLog := W - lMargin - rMargin
+      if (wLog < 200) {
+        wLog := 200
+      }
+      c["txtLog"].Move(lMargin, topLog, wLog, logH)
     } catch Error as _eReflow {
       ; no-op
     }
@@ -212,14 +387,17 @@ class UiWindow {
     } catch Error as _ePos {
       return MonitorGetPrimary()
     }
+
     winCenterX := winX + Floor(W / 2)
     winCenterY := winY + Floor(H / 2)
+
     monCount := 1
     try {
       monCount := MonitorGetCount()
     } catch Error as _eCnt {
       monCount := 1
     }
+
     idx := MonitorGetPrimary()
     i := 1
     try {
@@ -272,11 +450,13 @@ class UiWindow {
     if (this._movingProgrammatically) {
       return
     }
+
     try {
       newIdx := this.GetMonitorIndexForWindow()
     } catch Error as _eMon {
       newIdx := this._currentMonitorIdx
     }
+
     if (newIdx != this._currentMonitorIdx) {
       this._currentMonitorIdx := newIdx
       this.PositionBottomRight(this._br_margin)
@@ -287,12 +467,18 @@ class UiWindow {
   GetApp() {
     return this._app
   }
+
   GetControls() {
     return this._controls
   }
+
   GetControl(name) {
     try {
-      return this._controls.Has(name) ? this._controls[name] : 0
+      if (this._controls.Has(name)) {
+        return this._controls[name]
+      } else {
+        return 0
+      }
     } catch Error as _e {
       return 0
     }
