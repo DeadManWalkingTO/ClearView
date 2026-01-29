@@ -125,34 +125,51 @@ class UiWindow {
       c["txtProbTitle"].Move(lMargin, probY, W - lMargin - rMargin, 20)
       sldY := probY + 20 + 4
 
+      ; Slider 150 px
       c["sldProb"].Move(lMargin, sldY, 150, 24)
 
+      ; Label "list1: X%" (AutoSize)
       lblX := lMargin + 150 + 8
-      c["lblProb"].Move(lblX, sldY)  ; AutoSize
+      c["lblProb"].Move(lblX, sldY)
 
-      ; Ασφαλής ανάγνωση μεγέθους label
+      ; Πραγματικό πλάτος label
       lbx := lblX, lby := sldY, lbw := 0, lbh := 0
       try {
         c["lblProb"].GetPos(&lbx, &lby, &lbw, &lbh)
       } catch Error as _eGetLbl {
-        ; no-op
+        lbw := 0
+        lbh := 0
       }
 
+      ; Checkbox αμέσως μετά το label — AutoSize (χωρίς fixed width)
       chkX := (lbw > 0) ? (lbx + lbw + 12) : (lblX + 12)
-      c["chkClickToPlay"].Move(chkX, sldY, 160, 24)
+      c["chkClickToPlay"].Move(chkX, sldY)  ; <-- Χωρίς width/height
 
-      ; Ασφαλής ανάγνωση μεγέθους checkbox
-      ckx := chkX, cky := sldY, ckw := 160, ckh := 24
+      ; Μέτρα πραγματικό πλάτος checkbox
+      ckx := chkX, cky := sldY, ckw := 0, ckh := 0
       try {
         c["chkClickToPlay"].GetPos(&ckx, &cky, &ckw, &ckh)
       } catch Error as _eGetChk {
-        ; no-op
+        ckw := 100
+        ckh := 24
       }
 
+      ; Label "Διάστημα (λεπτά): από" — AutoSize
       loopX := ckx + ckw + 12
       loopY := sldY
-      c["txtLoopTitle"].Move(loopX, loopY, 130, 24)
-      loopX += 130 + 6
+      c["txtLoopTitle"].Move(loopX, loopY)
+
+      ; Πραγματικό πλάτος label "Διάστημα..."
+      ltx := loopX, lty := loopY, ltw := 0, lth := 0
+      try {
+        c["txtLoopTitle"].GetPos(&ltx, &lty, &ltw, &lth)
+      } catch Error as _eGetLbl2 {
+        ltw := 130
+        lth := 24
+      }
+
+      ; Edit/UpDown αμέσως μετά το label
+      loopX := loopX + ltw + 6
       c["edtLoopMin"].Move(loopX, loopY, 40, 24)
       loopX += 40 + 6
       c["txtLoopTo"].Move(loopX, loopY, 26, 24)
