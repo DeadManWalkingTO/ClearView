@@ -26,7 +26,7 @@ class FlowController {
 
     IsRunning() => this._running
 
-    ; --- ΝΕΟ: setter για GUI rect (screen coords) ---
+    ; --- Setter για GUI rect (screen coords) ---
     SetGuiRect(x, y, w, h) {
         try {
             this.guiX := x + 0
@@ -171,13 +171,13 @@ class FlowController {
         this.edge.StepDelay()
         this.edge.StepDelay()
         this._checkAbortOrPause()
-
         try {
             this.log.SetHeadline("⏩ Άνοιγμα Νέου Παραθύρου Edge…")
             this.log.Write(Format("⏩ Edge New Window: {1}", profArg))
         } catch Error as _eL3 {
         }
 
+        ; === Εκτέλεση ανοίγματος νέου παραθύρου ===
         hNew := this.edge.OpenNewWindow(profArg)
         if (!hNew) {
             try {
@@ -186,6 +186,12 @@ class FlowController {
             } catch Error as _eL4 {
             }
             return
+        }
+
+        ; --- ΝΕΟ: καθυστέρηση MID_DELAY_MS με log μετά το Edge New Window ---
+        try {
+            this.log.SleepWithLog(Settings.MID_DELAY_MS, "μετά το Edge New Window")
+        } catch Error as _eAfterOpen {
         }
 
         WinActivate("ahk_id " hNew)
@@ -216,6 +222,12 @@ class FlowController {
         } catch Error as _eL7 {
         }
 
+        ; --- ΝΕΟ: καθυστέρηση MID_DELAY_MS με log μετά τον καθαρισμό tabs ---
+        try {
+            this.log.SleepWithLog(Settings.MID_DELAY_MS, "μετά τον καθαρισμό tabs")
+        } catch Error as _eAfterClean {
+        }
+
         if (Settings.CLOSE_ALL_OTHER_WINDOWS) {
             this.edge.CloseAllOtherWindows(hNew)
             try {
@@ -224,7 +236,7 @@ class FlowController {
             }
         }
 
-        ; --- ΝΕΟ: ενημερωτικό log για αποκλεισμό GUI κατά το sampling ---
+        ; --- ενημερωτικό log για αποκλεισμό GUI κατά το sampling ---
         try {
             if (this.guiW > 0) {
                 if (this.guiH > 0) {
@@ -274,7 +286,7 @@ class FlowController {
                 }
 
                 ok := false
-                ; --- ΝΕΟ: περνάμε το GUI rect στο EnsurePlaying ---
+                ; --- περνάμε το GUI rect στο EnsurePlaying ---
                 try {
                     ok := this.video.EnsurePlaying(hNew, this.log, this.guiX, this.guiY, this.guiW, this.guiH)
                 } catch Error as _eEns {
