@@ -101,11 +101,13 @@ class UiWindow
       ; --- Επικεφαλίδα ---
       headY := loopBaseY + 24 + 10
 
+
       c["txtHead"] := this._app.Add(
         "Text",
-        Format("x{1} y{2} w640 h24", 12, headY),
+        Format("x{1} y{2} w640 h24 cBlue", 12, headY),
         "Έτοιμο. " Settings.APP_VERSION
       )
+
 
       ; --- Περιοχή Log ---
       topLog := headY + 24 + 6
