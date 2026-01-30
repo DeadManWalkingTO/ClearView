@@ -15,8 +15,8 @@ class RegexLib
       . c.DOT
       . c.BS . c.CARET
       . c.BS . c.DOLLAR
-      . c.STAR
-      . c.PLUS
+      . c.STAR               ; "*" μέσα σε character class είναι κυριολεκτικό
+      . c.PLUS               ; "+" μέσα σε character class είναι κυριολεκτικό
       . c.QMARK
       . c.LPAREN . c.RPAREN
       . c.LBRACE . c.RBRACE
@@ -36,7 +36,8 @@ class RegexLib
   static IsProfileFolderName(name)
   {
     c := RegexLib.Chars
-    pat := "^Profile" . c.WS . "\+" . "\d" . "\+" . "$"
+    ; "^Profile\s+\d+$"
+    pat := "^Profile" . c.WS . c.PLUS . c.DIGIT . c.PLUS . "$"
     return RegExMatch(name, pat) ? true : false
   }
 
@@ -46,12 +47,12 @@ class RegexLib
   class Chars
   {
     ; === Απλοί χαρακτήρες ===
-    static BS := Chr(92)     ; "\"
-    static DQ := Chr(34)     ; """
-    static SQT := Chr(39)     ; "'"
-    static BACKTICK := Chr(96)     ; "`"
+    static BS := Chr(92)        ; "\"
+    static DQ := Chr(34)        ; """
+    static SQT := Chr(39)        ; "'"
+    static BACKTICK := Chr(96)        ; "`"
 
-    ; === Escaped regex literals (πάντα Chr(92) . Chr(...)) ===
+    ; === Escaped regex literals (backslash + χαρακτήρας) ===
     static LBRACE := Chr(92) . Chr(123)  ; \{
     static RBRACE := Chr(92) . Chr(125)  ; \}
     static LBRKT := Chr(92) . Chr(91)   ; \[
@@ -63,8 +64,12 @@ class RegexLib
     static CARET := Chr(94)             ; ^
     static DASH := Chr(92) . Chr(45)   ; \-
     static DOT := Chr(46)             ; .
-    static STAR := Chr(92) . Chr(42)   ; \*
-    static PLUS := Chr(92) . Chr(43)   ; \+
+    ; === Επιλογή Β: ποσοτικοποιητές ΜΗ-escaped ===
+    static STAR := Chr(42)             ; "*"  (quantifier)
+    static PLUS := Chr(43)             ; "+"  (quantifier)
+    ; === Προαιρετικά: literals αν ποτέ χρειαστούν κυριολεκτικοί ===
+    static LIT_STAR := Chr(92) . Chr(42)   ; \*
+    static LIT_PLUS := Chr(92) . Chr(43)   ; \+
     static QMARK := Chr(63)             ; ?
     static COLON := Chr(58)             ; :
     static COMMA := Chr(44)             ; ,
@@ -123,6 +128,7 @@ class RegexLib
   static Pat_JsonObjectMinimal()
   {
     c := RegexLib.Chars
+    ; \{ [\s\S]*? \}
     return c.BS . c.LBRACE
       . c.LBRKT . c.WS . c.BIGS . c.RBRKT
       . c.STAR . c.QMARK
@@ -132,6 +138,7 @@ class RegexLib
   static Pat_JsonKeyQuotedString(key)
   {
     c := RegexLib.Chars
+    ; \"key\"\s*:\s*\"([^\"]*)\"
     return c.BS . c.DQ . key . c.BS . c.DQ
       . c.WS . c.STAR . c.COLON . c.WS . c.STAR
       . c.BS . c.DQ
@@ -142,14 +149,15 @@ class RegexLib
   static Pat_JsonKeyNumber(key)
   {
     c := RegexLib.Chars
+    ; \"key\"\s*:\s*(-?\d+(?:\.\d+)?)
     return c.BS . c.DQ . key . c.BS . c.DQ
       . c.WS . c.STAR . c.COLON . c.WS . c.STAR
       . c.LPAREN
-      . c.DASH . c.QMARK
-      . c.DIGIT . c.PLUS
-      . c.LPAREN . c.QMARK . c.COLON
-      . c.BS . c.DOT
-      . c.DIGIT . c.PLUS
+      . c.DASH . c.QMARK         ; optional '-'
+      . c.DIGIT . c.PLUS         ; \d+
+      . c.LPAREN . c.QMARK . c.COLON  ; (?: ... )
+      . c.BS . c.DOT             ; \.
+      . c.DIGIT . c.PLUS         ; \d+
       . c.RPAREN
       . c.RPAREN
   }
@@ -161,10 +169,9 @@ class RegexLib
   {
     if (localStateText = "")
       return ""
-
     c := RegexLib.Chars
 
-    ; pattern για "profile": { "info_cache": {...} }
+    ; "profile": { "info_cache": { ... } }
     pat :=
       c.BS . c.DQ . "profile" . c.BS . c.DQ
       . c.WS . c.STAR . c.COLON . c.WS . c.STAR
@@ -187,8 +194,7 @@ class RegexLib
     cache := m[0]
     pos := 1
 
-    ; pattern:
-    ; "Profile X": { "name": "DisplayName", ... }
+    ; "Profile X": {"name": "DisplayName", ...}
     p2 :=
       c.BS . c.DQ
       . c.LPAREN . c.LBRKT . c.CARET . c.BS . c.DQ . c.RBRKT . c.PLUS . c.RPAREN
@@ -214,9 +220,6 @@ class RegexLib
     } catch Error as e {
       ; ignore
     }
-
-    ; Στο backup σου υπήρχε "return \""
-    ; Αυτό είναι syntax error. Επαναφέρουμε το σωστό:
     return ""
   }
 
@@ -231,7 +234,7 @@ class RegexLib
     c := RegexLib.Chars
     escName := RegexLib.Escape(displayName)
 
-    ; "profile": {... "name": "DisplayName" ... }
+    ; "profile": {... "name": "DisplayName" ...}
     p1 :=
       c.BS . c.DQ . "profile" . c.BS . c.DQ
       . c.WS . c.STAR . c.COLON . c.WS . c.STAR
@@ -254,7 +257,6 @@ class RegexLib
     if RegExMatch(prefsText, p2) {
       return true
     }
-
     return false
   }
 }
