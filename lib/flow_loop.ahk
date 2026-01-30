@@ -2,13 +2,13 @@
 #Requires AutoHotkey v2.0
 #Include "settings.ahk"
 #Include "videopicker.ahk"
-#Include "moves.ahk"
+#Include "moves.ahk"         ; ← χρησιμοποιούμε ClickCenter() & MoveMouseRandom4()
 
 ; FlowLoop:
 ; - Τρέχει τον συνεχόμενο κύκλο: Pick -> Navigate -> Ensure -> Recheck/Recover -> Wait.
 ; - Δεν ανοίγει/κλείνει Edge· δέχεται ήδη έτοιμο hWnd.
 ; - Διατηρεί pause/stop state, cycle counter και GUI-rect για exclusion στο VideoService.
-; - Τηρεί τους κανόνες AHK v2 του project (πολυγραμμικά if, πλήρη try/catch, χωρίς &&/||).
+; - Τηρεί τους κανόνες AHK v2 (πολυγραμμικά if, πλήρη try/catch, χωρίς &&/||).
 
 class FlowLoop {
     __New(logger, edgeSvc, videoSvc, picker, settings) {
@@ -118,9 +118,13 @@ class FlowLoop {
             } catch {
             }
 
-            ; One-shot δράση μόνο στην 1η επανάληψη
+            ; One-shot δράση μόνο στην 1η επανάληψη: ενοποιημένη σε ClickCenter()
             if (cycleNo = 1) {
-                this._firstRunClickCenter(hWnd)
+                try {
+                    ; μικρό human-like pre-move delay (0) και προ-κλικ καθυστέρηση 80ms
+                    ClickCenter(hWnd, this.log, 0, 80)
+                } catch {
+                }
             }
 
             ; Ensure playing (με GUI-rect exclusion)
@@ -132,12 +136,14 @@ class FlowLoop {
             }
 
             if (ok) {
-                try this.log.Write("🎵 Το βίντεο παίζει.")
-                catch {
+                try {
+                    this.log.Write("🎵 Το βίντεο παίζει.")
+                } catch {
                 }
             } else {
-                try this.log.Write("⛔ Το βίντεο ΔΕΝ παίζει.")
-                catch {
+                try {
+                    this.log.Write("⛔ Το βίντεο ΔΕΝ παίζει.")
+                } catch {
                 }
             }
 
@@ -156,9 +162,11 @@ class FlowLoop {
             }
 
             if (!ok2) {
-                try this.log.Write("⚠️ Μετά την αναμονή: δεν ανιχνεύεται κίνηση — πιθανό false positive. Προσπάθεια ανάκτησης…")
-                catch {
+                try {
+                    this.log.Write("⚠️ Μετά την αναμονή: δεν ανιχνεύεται κίνηση — πιθανό false positive. Προσπάθεια ανάκτησης…")
+                } catch {
                 }
+
                 recOk := false
                 try {
                     recOk := this.video.EnsurePlaying(hWnd, this.log, this.guiX, this.guiY, this.guiW, this.guiH)
@@ -167,17 +175,20 @@ class FlowLoop {
                 }
 
                 if (recOk) {
-                    try this.log.Write("✅ Ανάκτηση επιτυχής μετά το false positive.")
-                    catch {
+                    try {
+                        this.log.Write("✅ Ανάκτηση επιτυχής μετά το false positive.")
+                    } catch {
                     }
                 } else {
-                    try this.log.Write("❌ Αποτυχία ανάκτησης μετά το false positive.")
-                    catch {
+                    try {
+                        this.log.Write("❌ Αποτυχία ανάκτησης μετά το false positive.")
+                    } catch {
                     }
                 }
             } else {
-                try this.log.Write("✅ Επιβεβαίωση: το βίντεο συνεχίζει να παίζει μετά την αναμονή.")
-                catch {
+                try {
+                    this.log.Write("✅ Επιβεβαίωση: το βίντεο συνεχίζει να παίζει μετά την αναμονή.")
+                } catch {
                 }
             }
 
@@ -198,32 +209,6 @@ class FlowLoop {
     }
 
     ; ---- Internals ----
-    _firstRunClickCenter(hWnd) {
-        local cX := 0, cY := 0, cW := 0, cH := 0
-        try {
-            WinGetClientPos(&cX, &cY, &cW, &cH, "ahk_id " hWnd)
-        } catch {
-            cW := 0
-            cH := 0
-        }
-        if (cW > 0) {
-            local cx := cX + Floor(cW * 0.50)
-            local cy := cY + Floor(cH * 0.50)
-            try {
-                MoveMouseRandom4(cx, cy)
-            } catch {
-            }
-            Sleep(80)
-            try {
-                Click(cx, cy)
-            } catch {
-            }
-            try {
-                this.log.Write("⌨️ First-run: MoveMouseRandom4 + Click στο κέντρο (μετά την πλοήγηση).")
-            } catch {
-            }
-        }
-    }
 
     _computeRandomWaitMs() {
         minMs := Settings.LOOP_MIN_MS + 0

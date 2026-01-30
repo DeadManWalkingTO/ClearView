@@ -3,13 +3,10 @@
 #Include "moves.ahk"
 #Include "settings.ahk"
 
-class VideoService
-{
-  ; ------------------------------
-  ; Βοηθητικά
-  ; ------------------------------
-  StepDelay(ms)
-  {
+class VideoService {
+
+  ; -------------------- Βοηθητικά --------------------
+  StepDelay(ms) {
     local d := 0
     try {
       d := ms + 0
@@ -22,8 +19,7 @@ class VideoService
     Sleep(d)
   }
 
-  _DebugLog(logger, msg)
-  {
+  _DebugLog(logger, msg) {
     local dbg := false
     try {
       dbg := Settings.VIDEO_DEBUG
@@ -33,16 +29,15 @@ class VideoService
     if (dbg) {
       if (logger) {
         try {
-          ; ΣΗΜ.: Write → Both → ενημέρωση και head με το ίδιο κείμενο (σύμφωνα με τη νέα πολιτική)
+          ; Write → Both → ενημέρωση και head με το ίδιο κείμενο
           logger.Write("🐞 " msg)
-        } catch Error as e {
+        } catch Error as e2 {
         }
       }
     }
   }
 
-  _ClampInt(v, minV, maxV)
-  {
+  _ClampInt(v, minV, maxV) {
     local x := 0
     try {
       x := v + 0
@@ -58,8 +53,7 @@ class VideoService
     return x
   }
 
-  _GetClientMetrics(hWnd, &cX, &cY, &cW, &cH)
-  {
+  _GetClientMetrics(hWnd, &cX, &cY, &cW, &cH) {
     cX := 0
     cY := 0
     cW := 0
@@ -74,8 +68,7 @@ class VideoService
     }
   }
 
-  _PointInGui(sx, sy, gx, gy, gw, gh)
-  {
+  _PointInGui(sx, sy, gx, gy, gw, gh) {
     if (gw > 0) {
       if (gh > 0) {
         if (sx >= gx) {
@@ -92,12 +85,9 @@ class VideoService
     return false
   }
 
-  ; ------------------------------------------------------------
-  ; ΝΕΟ IsPlaying(): 300 δείγματα, ασφαλής περιοχή,
-  ; αποκλεισμός GUI, early-exit 5 γύρων
-  ; ------------------------------------------------------------
-  IsPlaying(hWnd, logger := 0, guiX := 0, guiY := 0, guiW := 0, guiH := 0)
-  {
+  ; -------------------- IsPlaying --------------------
+  ; ΝΕΟ IsPlaying(): 300 δείγματα, ασφαλής περιοχή, αποκλεισμός GUI, early-exit 5 γύρων
+  IsPlaying(hWnd, logger := 0, guiX := 0, guiY := 0, guiW := 0, guiH := 0) {
     ; Client metrics
     local cX := 0
     local cY := 0
@@ -107,7 +97,10 @@ class VideoService
       this._GetClientMetrics(hWnd, &cX, &cY, &cW, &cH)
     } catch Error as e {
       if (logger) {
-        try logger.Write("⚠️ GetClientMetrics: " e.Message)
+        try {
+          logger.Write("⚠️ GetClientMetrics: " e.Message)
+        } catch {
+        }
       }
       return false
     }
@@ -147,7 +140,6 @@ class VideoService
     local safeX2 := Floor(cW * (1 - marginRight))
     local safeY1 := Floor(cH * marginTop)
     local safeY2 := Floor(cH * (1 - marginBottom))
-
     if (safeX2 <= safeX1) {
       safeX1 := 0
       safeX2 := cW - 1
@@ -162,7 +154,6 @@ class VideoService
     local targetCount := 300
     local maxTotalTries := targetCount * 6
     local tries := 0
-
     while (pts.Length < targetCount) {
       if (tries >= maxTotalTries) {
         break
@@ -173,12 +164,12 @@ class VideoService
       local py := 0
       try {
         px := Random(safeX1, safeX2)
-      } catch Error {
+      } catch {
         px := safeX1
       }
       try {
         py := Random(safeY1, safeY2)
-      } catch Error {
+      } catch {
         py := safeY1
       }
 
@@ -187,7 +178,7 @@ class VideoService
       local inGui := false
       try {
         inGui := this._PointInGui(sx, sy, guiX, guiY, guiW, guiH)
-      } catch Error {
+      } catch {
         inGui := false
       }
       if (inGui) {
@@ -200,8 +191,16 @@ class VideoService
     while (pts.Length < targetCount) {
       local px2 := 0
       local py2 := 0
-      try px2 := Random(0, cW - 1)
-      try py2 := Random(0, cH - 1)
+      try {
+        px2 := Random(0, cW - 1)
+      } catch {
+        px2 := 0
+      }
+      try {
+        py2 := Random(0, cH - 1)
+      } catch {
+        py2 := 0
+      }
       pts.Push([px2, py2])
     }
 
@@ -214,22 +213,19 @@ class VideoService
       t := t + 1
     }
 
-    ; 🔶 ΠΡΙΝ από το πρώτο sampling (round=1)
-    ; Κίνηση ποντικιού στο κέντρο του client, έπειτα αναμονή MID_DELAY_MS.
+    ; 🔶 ΠΡΙΝ από το πρώτο sampling (round=1): κίνηση ποντικιού στο κέντρο και αναμονή MID_DELAY_MS
     try {
       local midCX := 0, midCY := 0
       midCX := cX + Floor(cW * 0.50)
       midCY := cY + Floor(cH * 0.50)
       MoveMouseRandom4(midCX, midCY)
-    } catch Error as _eMM {
-      ; no-op
+    } catch {
     }
     try {
       local mid := 0
       mid := Settings.MID_DELAY_MS + 0
       Sleep(mid)
-    } catch Error as _eMid {
-      ; no-op
+    } catch {
     }
 
     ; Sampling 5 γύρων με early exit
@@ -240,15 +236,24 @@ class VideoService
       while (idx <= pts.Length) {
         local pxs := 0
         local pys := 0
-        try pxs := pts[idx][1]
-        try pys := pts[idx][2]
+        try {
+          pxs := pts[idx][1]
+        } catch {
+          pxs := 0
+        }
+        try {
+          pys := pts[idx][2]
+        } catch {
+          pys := 0
+        }
 
         local col := ""
         try {
           col := PixelGetColor(pxs, pys, "Window")
-        } catch Error {
+        } catch {
           col := ""
         }
+
         A[t].Push(col)
         idx := idx + 1
       }
@@ -261,12 +266,24 @@ class VideoService
         while (idx <= pts.Length) {
           local v1 := ""
           local v2 := ""
-          try v1 := A[t - 1][idx]
-          try v2 := A[t][idx]
+          try {
+            v1 := A[t - 1][idx]
+          } catch {
+            v1 := ""
+          }
+          try {
+            v2 := A[t][idx]
+          } catch {
+            v2 := ""
+          }
           if (v1 != "") {
             if (v2 != "") {
               local diff := 0
-              try diff := Abs(v1 - v2)
+              try {
+                diff := Abs(v1 - v2)
+              } catch {
+                diff := 0
+              }
               if (diff > 0x030303) {
                 changedCount := changedCount + 1
               }
@@ -285,73 +302,70 @@ class VideoService
       }
       t := t + 1
     }
+
     return false
   }
 
-  ; ------------------------------------------------------------
-  ; EnsurePlaying με GUI-aware IsPlaying
-  ; ------------------------------------------------------------
-  EnsurePlaying(hWnd, logger := 0, guiX := 0, guiY := 0, guiW := 0, guiH := 0)
-  {
+  ; -------------------- EnsurePlaying --------------------
+  ; GUI-aware IsPlaying + fallback click στο κέντρο με ClickCenter()
+  EnsurePlaying(hWnd, logger := 0, guiX := 0, guiY := 0, guiW := 0, guiH := 0) {
     local plays := false
     try {
       plays := this.IsPlaying(hWnd, logger, guiX, guiY, guiW, guiH)
     } catch Error as e {
       plays := false
       if (logger) {
-        try logger.Write("⚠️ IsPlaying error: " e.Message)
+        try {
+          logger.Write("⚠️ IsPlaying error: " e.Message)
+        } catch {
+        }
       }
     }
     if (plays) {
       return true
     }
 
-    ; fallback click center
-    local cX, cY, cW, cH
+    ; 🔁 Fallback: ενιαία κλήση στο ClickCenter (ενοποίηση)
+    local clicked := false
     try {
-      this._GetClientMetrics(hWnd, &cX, &cY, &cW, &cH)
-    } catch Error as e2 {
-      if (logger) {
-        try logger.Write("⚠️ GetClientMetrics error: " e2.Message)
-      }
-      return false
-    }
-    if (cW <= 0) {
-      return false
+      clicked := ClickCenter(hWnd, logger, 0, 80)
+    } catch {
+      clicked := false
     }
 
-    local cx := 0
-    local cy := 0
-    try {
-      cx := cX + Floor(cW * 0.50)
-      cy := cY + Floor(cH * 0.50)
-    } catch Error {
-      cx := cX
-      cy := cY
-    }
-
-    try MoveMouseRandom4(cx, cy)
-    this.StepDelay(80)
-    try Click(cx, cy)
-
+    ; Μικρή αναμονή (MID_DELAY_MS) πριν το recheck
     local mid := 0
-    try mid := Settings.MID_DELAY_MS + 0
+    try {
+      mid := Settings.MID_DELAY_MS + 0
+    } catch {
+      mid := 3000
+    }
     this.StepDelay(mid)
 
     try {
       plays := this.IsPlaying(hWnd, logger, guiX, guiY, guiW, guiH)
-    } catch Error {
+    } catch {
       plays := false
     }
     if (plays) {
       if (logger) {
-        try logger.Write("▶️ Έναρξη αναπαραγωγής με click στο κέντρο.")
+        try {
+          if (clicked) {
+            logger.Write("▶️ Έναρξη αναπαραγωγής με click στο κέντρο.")
+          } else {
+            logger.Write("▶️ Έναρξη αναπαραγωγής (χωρίς click).")
+          }
+        } catch {
+        }
       }
       return true
     }
 
     if (logger) {
-      try logger.Write("⛔ Αποτυχία εκκίνησης με click στο κέντρο.")
+      try {
+        logger.Write("⛔ Αποτυχία εκκίνησης με click στο κέντρο.")
+      } catch {
+      }
     }
     return false
   }
