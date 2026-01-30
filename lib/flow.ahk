@@ -4,6 +4,7 @@
 #Include "regex.ahk"
 #Include "edge.ahk"
 #Include "video.ahk"
+#Include "moves.ahk"   ; ⬅️ ΝΕΟ: για χρήση MoveMouseRandom4
 
 class FlowController {
     __New(log, edge, video, settings) {
@@ -17,7 +18,7 @@ class FlowController {
         this._cycleCount := 0
         this.list1 := []
         this.list2 := []
-        ; --- ΝΕΟ: ορθογώνιο GUI για αποκλεισμό sampling ---
+        ; --- ορθογώνιο GUI για αποκλεισμό sampling ---
         this.guiX := 0
         this.guiY := 0
         this.guiW := 0
@@ -26,7 +27,7 @@ class FlowController {
 
     IsRunning() => this._running
 
-    ; --- Setter για GUI rect (screen coords) ---
+    ; Setter για GUI rect (screen coords)
     SetGuiRect(x, y, w, h) {
         try {
             this.guiX := x + 0
@@ -188,7 +189,7 @@ class FlowController {
             return
         }
 
-        ; --- ΝΕΟ: καθυστέρηση MID_DELAY_MS με log μετά το Edge New Window ---
+        ; καθυστέρηση MID_DELAY_MS με log μετά το Edge New Window
         try {
             this.log.SleepWithLog(Settings.MID_DELAY_MS, "μετά το Edge New Window")
         } catch Error as _eAfterOpen {
@@ -222,7 +223,7 @@ class FlowController {
         } catch Error as _eL7 {
         }
 
-        ; --- ΝΕΟ: καθυστέρηση MID_DELAY_MS με log μετά τον καθαρισμό tabs ---
+        ; καθυστέρηση MID_DELAY_MS με log μετά τον καθαρισμό tabs
         try {
             this.log.SleepWithLog(Settings.MID_DELAY_MS, "μετά τον καθαρισμό tabs")
         } catch Error as _eAfterClean {
@@ -236,7 +237,7 @@ class FlowController {
             }
         }
 
-        ; --- ενημερωτικό log για αποκλεισμό GUI κατά το sampling ---
+        ; ενημερωτικό log για αποκλεισμό GUI κατά το sampling
         try {
             if (this.guiW > 0) {
                 if (this.guiH > 0) {
@@ -285,8 +286,45 @@ class FlowController {
                 } catch Error as _eSleep1 {
                 }
 
+                ; ----------------------------
+                ; 🔸 ΝΕΟ: One-shot action ΜΟΝΟ στην 1η επανάληψη,
+                ; αμέσως μετά την «Καθυστέρηση ... — μετά την πλοήγηση»
+                ; Κάνουμε MoveMouseRandom4 + ένα click στο κέντρο του client.
+                ; ----------------------------
+                if (cycleNo = 1) {
+                    local cX := 0, cY := 0, cW := 0, cH := 0
+                    try {
+                        WinGetClientPos(&cX, &cY, &cW, &cH, "ahk_id " hNew)
+                    } catch Error as _eCli {
+                        cX := 0, cY := 0, cW := 0, cH := 0
+                    }
+                    if (cW > 0) {
+                        local cx := 0, cy := 0
+                        try {
+                            cx := cX + Floor(cW * 0.50)
+                            cy := cY + Floor(cH * 0.50)
+                        } catch Error as _eC {
+                            cx := cX
+                            cy := cY
+                        }
+                        try {
+                            MoveMouseRandom4(cx, cy)
+                        } catch Error as _eMv {
+                        }
+                        Sleep(80)
+                        try {
+                            Click(cx, cy)
+                        } catch Error as _eClk {
+                        }
+                        try {
+                            this.log.Write("🖱️ First-run: MoveMouseRandom4 + Click στο κέντρο (μετά την πλοήγηση).")
+                        } catch Error as _eLogFR {
+                        }
+                    }
+                }
+
                 ok := false
-                ; --- περνάμε το GUI rect στο EnsurePlaying ---
+                ; περνάμε το GUI rect στο EnsurePlaying
                 try {
                     ok := this.video.EnsurePlaying(hNew, this.log, this.guiX, this.guiY, this.guiW, this.guiH)
                 } catch Error as _eEns {
@@ -305,11 +343,50 @@ class FlowController {
                     }
                 }
 
+                ; === Αναμονή μετά το detection (όπως πριν) ===
                 try {
                     this.log.SleepWithLog(Settings.STEP_DELAY_MS, "μετά το detection")
                 } catch Error as _eSleep2 {
                 }
 
+                ; === Δεύτερος έλεγχος για false positive (υπάρχων) ===
+                ok2 := false
+                try {
+                    ok2 := this.video.IsPlaying(hNew, this.log, this.guiX, this.guiY, this.guiW, this.guiH)
+                } catch Error as _eRecheck {
+                    ok2 := false
+                }
+
+                if (!ok2) {
+                    try {
+                        this.log.Write("⚠️ Μετά την αναμονή: δεν ανιχνεύεται κίνηση — πιθανό false positive. Προσπάθεια ανάκτησης…")
+                    } catch Error as _eWarnFP {
+                    }
+                    recOk := false
+                    try {
+                        recOk := this.video.EnsurePlaying(hNew, this.log, this.guiX, this.guiY, this.guiW, this.guiH)
+                    } catch Error as _eRec {
+                        recOk := false
+                    }
+                    if (recOk) {
+                        try {
+                            this.log.Write("✅ Ανάκτηση επιτυχής μετά το false positive.")
+                        } catch Error as _eRecOk {
+                        }
+                    } else {
+                        try {
+                            this.log.Write("❌ Αποτυχία ανάκτησης μετά το false positive.")
+                        } catch Error as _eRecFail {
+                        }
+                    }
+                } else {
+                    try {
+                        this.log.Write("✅ Επιβεβαίωση: το βίντεο συνεχίζει να παίζει μετά την αναμονή.")
+                    } catch Error as _eOk2 {
+                    }
+                }
+
+                ; === Συνέχεια ροής ===
                 waitMs := this._computeRandomWaitMs()
                 try {
                     this.log.Write(Format("⏳ Αναμονή ακριβώς {1} ms ({2}) — κύκλος #{3}", waitMs, this._fmtDurationMs(waitMs), cycleNo))
