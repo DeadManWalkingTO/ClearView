@@ -10,13 +10,13 @@ class RegexLib
   static Escape(str)
   {
     c := RegexLib.Chars
-    ; Χτίζεται pattern χωρίς raw backslashes στο source
+    ; Χτισμένο με κανονικά groups (LPAREN/RPAREN) γύρω από το character class
     pat := c.LPAREN . c.LBRKT
       . c.DOT
       . c.BS . c.CARET
       . c.BS . c.DOLLAR
-      . c.STAR               ; "*" μέσα σε character class είναι κυριολεκτικό
-      . c.PLUS               ; "+" μέσα σε character class είναι κυριολεκτικό
+      . c.STAR               ; * μέσα σε character class: literal
+      . c.PLUS               ; + μέσα σε character class: literal
       . c.QMARK
       . c.LPAREN . c.RPAREN
       . c.LBRACE . c.RBRACE
@@ -24,50 +24,50 @@ class RegexLib
       . c.BS . c.DASH
       . c.BS . c.BS
       . c.RBRKT . c.RPAREN
-
     repl := c.BS . c.BS . "$1"
     return RegExReplace(str, pat, repl)
   }
 
   ; ------------------------------------------------------
-  ; Επιστρέφει true αν το όνομα φακέλου ταιριάζει:
   ; "Profile N" (N = αριθμός)
   ; ------------------------------------------------------
   static IsProfileFolderName(name)
   {
     c := RegexLib.Chars
-    ; "^Profile\s+\d+$"
     pat := "^Profile" . c.WS . c.PLUS . c.DIGIT . c.PLUS . "$"
     return RegExMatch(name, pat) ? true : false
   }
 
   ; ------------------------------------------------------
-  ; Δομικά στοιχεία για σύνθεση REGEX χαρακτήρα-χαρακτήρα
+  ; Tokens για σύνθεση REGEX
   ; ------------------------------------------------------
   class Chars
   {
-    ; === Απλοί χαρακτήρες ===
-    static BS := Chr(92)        ; "\"
-    static DQ := Chr(34)        ; """
-    static SQT := Chr(39)        ; "'"
-    static BACKTICK := Chr(96)        ; "`"
+    ; Απλοί χαρακτήρες
+    static BS := Chr(92)         ; "\"
+    static DQ := Chr(34)         ; "
+    static SQT := Chr(39)         ; '
+    static BACKTICK := Chr(96)         ; `
 
-    ; === Escaped regex literals (backslash + χαρακτήρας) ===
+    ; Escaped literals
     static LBRACE := Chr(92) . Chr(123)  ; \{
     static RBRACE := Chr(92) . Chr(125)  ; \}
     static LBRKT := Chr(92) . Chr(91)   ; \[
     static RBRKT := Chr(92) . Chr(93)   ; \]
-    static LPAREN := Chr(92) . Chr(40)   ; \(
-    static RPAREN := Chr(92) . Chr(41)   ; \)
+
+    ; ΠΑΡΕΝΘΕΣΕΙΣ: χωρίς backslash για κανονικά groups
+    static LPAREN := Chr(40)             ; (
+    static RPAREN := Chr(41)             ; )
+
     static LT := Chr(92) . Chr(60)   ; \<
     static GT := Chr(92) . Chr(62)   ; \>
     static CARET := Chr(94)             ; ^
     static DASH := Chr(92) . Chr(45)   ; \-
     static DOT := Chr(46)             ; .
-    ; === Επιλογή Β: ποσοτικοποιητές ΜΗ-escaped ===
-    static STAR := Chr(42)             ; "*"  (quantifier)
-    static PLUS := Chr(43)             ; "+"  (quantifier)
-    ; === Προαιρετικά: literals αν ποτέ χρειαστούν κυριολεκτικοί ===
+    ; Quantifiers (μη-escaped)
+    static STAR := Chr(42)             ; *
+    static PLUS := Chr(43)             ; +
+    ; Προαιρετικά literal-εκδόσεις
     static LIT_STAR := Chr(92) . Chr(42)   ; \*
     static LIT_PLUS := Chr(92) . Chr(43)   ; \+
     static QMARK := Chr(63)             ; ?
@@ -79,7 +79,7 @@ class RegexLib
     static DOLLAR := Chr(36)             ; $
     static PIPE := Chr(92) . Chr(124)  ; \|
 
-    ; === Regex tokens (PCRE) ===
+    ; Regex tokens
     static WS := Chr(92) . Chr(115)  ; \s
     static BIGS := Chr(92) . Chr(83)   ; \S
     static DIGIT := Chr(92) . Chr(100)  ; \d
@@ -96,7 +96,6 @@ class RegexLib
     static DQ() {
       return Chr(34)
     }
-
     static BS() {
       return Chr(92)
     }
@@ -115,7 +114,6 @@ class RegexLib
       return s
     }
 
-    ; PCRE \Q...\E literal quoting
     static EscapeQuoted(s)
     {
       return RegexLib.Chars.BS . "Q" . s . RegexLib.Chars.BS . "E"
@@ -123,16 +121,16 @@ class RegexLib
   }
 
   ; ------------------------------------------------------
-  ; Patterns για JSON parsing (χρησιμοποιούνται στα Edge profiles)
+  ; Patterns για JSON parsing (Edge profiles)
   ; ------------------------------------------------------
   static Pat_JsonObjectMinimal()
   {
     c := RegexLib.Chars
     ; \{ [\s\S]*? \}
-    return c.BS . c.LBRACE
+    return c.LBRACE
       . c.LBRKT . c.WS . c.BIGS . c.RBRKT
       . c.STAR . c.QMARK
-      . c.BS . c.RBRACE
+      . c.RBRACE
   }
 
   static Pat_JsonKeyQuotedString(key)
@@ -175,13 +173,13 @@ class RegexLib
     pat :=
       c.BS . c.DQ . "profile" . c.BS . c.DQ
       . c.WS . c.STAR . c.COLON . c.WS . c.STAR
-      . c.BS . c.LBRACE . c.WS . c.STAR
+      . c.LBRACE . c.WS . c.STAR
       . c.BS . c.DQ . "info_cache" . c.BS . c.DQ
       . c.WS . c.STAR . c.COLON . c.WS . c.STAR
-      . c.BS . c.LBRACE
+      . c.LBRACE
       . c.LBRKT . c.WS . c.BIGS . c.RBRKT . c.STAR . c.QMARK
-      . c.BS . c.RBRACE . c.WS . c.STAR
-      . c.BS . c.RBRACE
+      . c.RBRACE . c.WS . c.STAR
+      . c.RBRACE
 
     try {
       if !RegExMatch(localStateText, pat, &m) {
@@ -200,7 +198,7 @@ class RegexLib
       . c.LPAREN . c.LBRKT . c.CARET . c.BS . c.DQ . c.RBRKT . c.PLUS . c.RPAREN
       . c.BS . c.DQ
       . c.WS . c.STAR . c.COLON . c.WS . c.STAR
-      . c.BS . c.LBRACE
+      . c.LBRACE
       . c.LBRKT . c.WS . c.BIGS . c.RBRKT . c.STAR
       . c.BS . c.DQ . "name" . c.BS . c.DQ
       . c.WS . c.STAR . c.COLON . c.WS . c.STAR
@@ -224,7 +222,7 @@ class RegexLib
   }
 
   ; ------------------------------------------------------
-  ; Έλεγχος αν Preferences JSON περιέχει το όνομα προφίλ
+  ; "name": "DisplayName" στον Preferences JSON
   ; ------------------------------------------------------
   static PreferencesContainsProfileName(prefsText, displayName)
   {
@@ -238,7 +236,7 @@ class RegexLib
     p1 :=
       c.BS . c.DQ . "profile" . c.BS . c.DQ
       . c.WS . c.STAR . c.COLON . c.WS . c.STAR
-      . c.BS . c.LBRACE
+      . c.LBRACE
       . c.LBRKT . c.WS . c.BIGS . c.RBRKT . c.STAR
       . c.BS . c.DQ . "name" . c.BS . c.DQ
       . c.WS . c.STAR . c.COLON . c.WS . c.STAR
