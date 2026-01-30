@@ -3,15 +3,19 @@
 #SingleInstance Force
 SetTitleMatchMode(2)
 SetWorkingDir(A_ScriptDir)
+
 ; --- Includes ---
 #Include ..\lib\settings.ahk
 #Include ..\lib\regex.ahk
 #Include ..\lib\edge.ahk
-#Include ..\lib\flow.ahk
+#Include ..\lib\video.ahk
+#Include ..\lib\moves.ahk
+#Include ..\lib\lists.ahk          ; ΝΕΟ: υπηρεσία λιστών (φόρτωση list1/list2)
+#Include ..\lib\videopicker.ahk    ; ΝΕΟ: επιλογή τυχαίας λίστας/ID/URL
+#Include ..\lib\flow.ahk           ; Ενημερωμένο: χρησιμοποιεί ListsService + VideoPicker
 #Include ..\lib\log.ahk
 #Include ..\lib\ui_window.ahk
 #Include ..\lib\ui_controller.ahk
-#Include ..\lib\video.ahk
 
 ; --- Bootstrap ---
 try
