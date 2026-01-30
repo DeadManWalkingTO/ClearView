@@ -26,6 +26,7 @@ class Settings {
     ; --- Χρονισμοί ---
     static EDGE_STEP_DELAY_MS := 1500
     static STEP_DELAY_MS := 5000
+    static MID_DELAY_MS := 3000
 
     ; --- Paths ---
     static DATA_LIST_TXT := "..\data\list.txt"

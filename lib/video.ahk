@@ -348,16 +348,7 @@ class VideoService
       }
     }
 
-    local mid := 3000
-    try {
-      mid := Settings.MID_DELAY_MS + 0
-    } catch Error as e {
-      mid := 3000
-      if (logger) {
-        try logger.Write("⚠️ MID_DELAY_MS error: " e.Message)
-
-      }
-    }
+    mid := Settings.MID_DELAY_MS + 0
 
     this.StepDelay(mid)
 
