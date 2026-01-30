@@ -5,8 +5,9 @@
 #Include "edge.ahk"
 #Include "video.ahk"
 #Include "moves.ahk"
-#Include "lists.ahk"        ; ΝΕΟ: φόρτωση λιστών από ξεχωριστό service
-#Include "videopicker.ahk"  ; ΝΕΟ: τυχαία επιλογή λίστας/ID/URL
+#Include "lists.ahk"
+#Include "videopicker.ahk"
+#Include "flow_loop.ahk"
 
 class FlowController {
     __New(log, edge, video, settings) {
@@ -20,9 +21,10 @@ class FlowController {
         this._stopRequested := false
         this._cycleCount := 0
 
-        ; Νέα services για λίστες και επιλογή video
+        ; Νέα services για λίστες/επιλογή video και αντικείμενο loop
         this.lists := ListsService()
         this.picker := 0
+        this._loop := 0
 
         ; ορθογώνιο GUI για αποκλεισμό sampling (screen coords)
         this.guiX := 0
@@ -61,9 +63,16 @@ class FlowController {
             }
         } catch Error as _e5 {
         }
+        ; Αν υπάρχει ήδη loop, συγχρονίζουμε το rect και εκεί
+        try {
+            if (this._loop) {
+                this._loop.SetGuiRect(this.guiX, this.guiY, this.guiW, this.guiH)
+            }
+        } catch Error as _e6 {
+        }
     }
 
-    ; --- ΝΕΟ: φόρτωση λιστών + init VideoPicker
+    ; --- ΝΕΟ: φόρτωση λιστών + init VideoPicker ---
     _loadListsAndPicker() {
         try {
             this.lists.Load(this.log)
@@ -129,11 +138,25 @@ class FlowController {
         if !this._running
             return false
         this._paused := !this._paused
+        ; Προώθηση στο ενεργό loop, αν υπάρχει
+        try {
+            if (this._loop) {
+                this._loop.TogglePause()
+            }
+        } catch Error as _eT {
+        }
         return this._paused
     }
 
     RequestStop() {
         this._stopRequested := true
+        ; Προώθηση στο ενεργό loop, αν υπάρχει
+        try {
+            if (this._loop) {
+                this._loop.RequestStop()
+            }
+        } catch Error as _eS {
+        }
     }
 
     _run() {
@@ -245,155 +268,29 @@ class FlowController {
         }
 
         ; =========================
-        ; 🔁 Continuous loop
+        ; 🔁 Continuous loop (με FlowLoop)
         ; =========================
+        this._loop := 0
         try {
-            loop {
-                this._checkAbortOrPause()
-                this._cycleCount += 1
-                cycleNo := this._cycleCount
-                startTs := FormatTime(A_Now, "yyyy-MM-dd HH:mm:ss")
-
-                try {
-                    this.log.Write(Format("🔄 Κύκλος #{1} σε εξέλιξη…", cycleNo))
-                } catch Error as _eHead {
-                }
-
-                ; --- Επιλογή video μέσω VideoPicker (ΝΕΟ) ---
-                info := 0
-                try {
-                    info := this.picker.Pick(Settings.LIST1_PROB_PCT, this.log)
-                } catch Error as _ePick {
-                    info := { source: "none", id: "", url: "about:blank" }
-                }
-                try {
-                    this.log.Write(Format("📚 Κύκλος #{1} — {2}", cycleNo, info.source))
-                    this.log.Write(Format("🔑 ID: {1} 🕒 start={2}", info.id, startTs))
-                    this.log.Write(Format("🌐 Πλοήγηση σε: {1}", info.url))
-                } catch Error as _eInfo {
-                }
-
-                this.edge.NavigateToUrl(hNew, info.url)
-                try {
-                    this.log.SleepWithLog(Settings.STEP_DELAY_MS, "μετά την πλοήγηση")
-                } catch Error as _eSleep1 {
-                }
-
-                ; One-shot δράση μόνο στην 1η επανάληψη
-                if (cycleNo = 1) {
-                    local cX := 0, cY := 0, cW := 0, cH := 0
-                    try {
-                        WinGetClientPos(&cX, &cY, &cW, &cH, "ahk_id " hNew)
-                    } catch Error as _eCli {
-                        cX := 0, cY := 0, cW := 0, cH := 0
-                    }
-                    if (cW > 0) {
-                        local cx := 0, cy := 0
-                        try {
-                            cx := cX + Floor(cW * 0.50)
-                            cy := cY + Floor(cH * 0.50)
-                        } catch Error as _eC {
-                            cx := cX
-                            cy := cY
-                        }
-                        try {
-                            MoveMouseRandom4(cx, cy)
-                        } catch Error as _eMv {
-                        }
-                        Sleep(80)
-                        try {
-                            Click(cx, cy)
-                        } catch Error as _eClk {
-                        }
-                        try {
-                            this.log.Write("⌨️ First-run: MoveMouseRandom4 + Click στο κέντρο (μετά την πλοήγηση).")
-                        } catch Error as _eLogFR {
-                        }
-                    }
-                }
-
-                ok := false
-                ; περνάμε το GUI rect στο EnsurePlaying
-                try {
-                    ok := this.video.EnsurePlaying(hNew, this.log, this.guiX, this.guiY, this.guiW, this.guiH)
-                } catch Error as _eEns {
-                    ok := false
-                }
-
-                if ok {
-                    try {
-                        this.log.Write("🎵 Το βίντεο παίζει.")
-                    } catch Error as _eOk {
-                    }
-                } else {
-                    try {
-                        this.log.Write("⛔ Το βίντεο ΔΕΝ παίζει.")
-                    } catch Error as _eNo {
-                    }
-                }
-
-                ; Αναμονή μετά το detection
-                try {
-                    this.log.SleepWithLog(Settings.STEP_DELAY_MS, "μετά το detection")
-                } catch Error as _eSleep2 {
-                }
-
-                ; Δεύτερος έλεγχος για false positive
-                ok2 := false
-                try {
-                    ok2 := this.video.IsPlaying(hNew, this.log, this.guiX, this.guiY, this.guiW, this.guiH)
-                } catch Error as _eRecheck {
-                    ok2 := false
-                }
-
-                if (!ok2) {
-                    try {
-                        this.log.Write("⚠️ Μετά την αναμονή: δεν ανιχνεύεται κίνηση — πιθανό false positive. Προσπάθεια ανάκτησης…")
-                    } catch Error as _eWarnFP {
-                    }
-
-                    recOk := false
-                    try {
-                        recOk := this.video.EnsurePlaying(hNew, this.log, this.guiX, this.guiY, this.guiW, this.guiH)
-                    } catch Error as _eRec {
-                        recOk := false
-                    }
-
-                    if (recOk) {
-                        try {
-                            this.log.Write("✅ Ανάκτηση επιτυχής μετά το false positive.")
-                        } catch Error as _eRecOk {
-                        }
-                    } else {
-                        try {
-                            this.log.Write("❌ Αποτυχία ανάκτησης μετά το false positive.")
-                        } catch Error as _eRecFail {
-                        }
-                    }
-                } else {
-                    try {
-                        this.log.Write("✅ Επιβεβαίωση: το βίντεο συνεχίζει να παίζει μετά την αναμονή.")
-                    } catch Error as _eOk2 {
-                    }
-                }
-
-                ; Συνέχεια ροής
-                waitMs := this._computeRandomWaitMs()
-                try {
-                    this.log.Write(Format("⏳ Αναμονή ακριβώς {1} ms ({2}) — κύκλος #{3}", waitMs, this._fmtDurationMs(waitMs), cycleNo))
-                } catch Error as _eHead2 {
-                }
-
-                this._sleepRespectingPauseStop(waitMs, "αναμονή μεταξύ βίντεο")
-
-                try {
-                    this.log.Write(Format("🟢 Τέλος Κύκλου #{1}", cycleNo))
-                } catch Error as _eEndCyc {
-                }
+            this._loop := FlowLoop(this.log, this.edge, this.video, this.picker, Settings)
+            ; Συγχρονισμός GUI-rect και αρχικής κατάστασης pause
+            this._loop.SetGuiRect(this.guiX, this.guiY, this.guiW, this.guiH)
+            if (this._paused) {
+                this._loop.TogglePause()
             }
-        } catch Error as _eLoopBreak {
+        } catch Error as _eNewLoop {
+            this._loop := 0
         }
 
+        try {
+            if (this._loop) {
+                this._loop.Run(hNew)
+            }
+        } catch Error as _eLoopBreak {
+            ; stop/pause/exception καταλήγει εδώ
+        }
+
+        ; Μετά το τέλος του loop, χειρισμός παραθύρου
         if (!Settings.KEEP_EDGE_OPEN) {
             WinClose("ahk_id " hNew)
             WinWaitClose("ahk_id " hNew, , 5)
@@ -407,59 +304,6 @@ class FlowController {
                 this.log.Write("✨ Ολοκλήρωση Κύκλου (Παραμονή Παραθύρου)")
             } catch Error as _eLogEnd2 {
             }
-        }
-    }
-
-    ; =====================================================
-    ; Helpers (όσα παραμένουν στο flow)
-    ; =====================================================
-    _computeRandomWaitMs() {
-        minMs := Settings.LOOP_MIN_MS + 0
-        maxMs := Settings.LOOP_MAX_MS + 0
-        if (maxMs < minMs) {
-            tmp := minMs
-            minMs := maxMs
-            maxMs := tmp
-        }
-        try {
-            return Round(Random(minMs, maxMs))
-        } catch Error as _e {
-        }
-    }
-
-    _fmtDurationMs(ms) {
-        total := ms + 0
-        if (total < 0) {
-            total := 0
-        }
-        m := Floor(total / 60000)
-        rem := Mod(total, 60000)
-        s := Floor(rem / 1000)
-        msRem := Mod(rem, 1000)
-        sTxt := (s < 10 ? "0" s : "" s)
-        msTxt := (msRem < 10 ? "00" msRem : (msRem < 100 ? "0" msRem : "" msRem))
-        return m "m " sTxt "s " msTxt "ms"
-    }
-
-    _sleepRespectingPauseStop(ms, label := "") {
-        chunk := 500
-        elapsed := 0
-        try {
-            if (label != "") {
-                this.log.Write(Format("⏳ Αναμονή σε εξέλιξη ({1} ms — {2})", ms, label))
-            } else {
-                this.log.Write(Format("⏳ Αναμονή σε εξέλιξη ({1} ms)", ms))
-            }
-        } catch Error as _eLog {
-        }
-
-        while (elapsed < ms) {
-            while this._paused
-                Sleep(150)
-            if this._stopRequested
-                throw Error("Stopped by user")
-            Sleep(chunk)
-            elapsed += chunk
         }
     }
 

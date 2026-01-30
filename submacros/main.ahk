@@ -10,9 +10,10 @@ SetWorkingDir(A_ScriptDir)
 #Include ..\lib\edge.ahk
 #Include ..\lib\video.ahk
 #Include ..\lib\moves.ahk
-#Include ..\lib\lists.ahk          ; ΝΕΟ: υπηρεσία λιστών (φόρτωση list1/list2)
-#Include ..\lib\videopicker.ahk    ; ΝΕΟ: επιλογή τυχαίας λίστας/ID/URL
-#Include ..\lib\flow.ahk           ; Ενημερωμένο: χρησιμοποιεί ListsService + VideoPicker
+#Include ..\lib\lists.ahk
+#Include ..\lib\videopicker.ahk
+#Include ..\lib\flow_loop.ahk   ; ← ΝΕΟ: πρέπει να προηγείται του flow.ahk
+#Include ..\lib\flow.ahk        ; ← χρησιμοποιεί FlowLoop
 #Include ..\lib\log.ahk
 #Include ..\lib\ui_window.ahk
 #Include ..\lib\ui_controller.ahk
