@@ -169,6 +169,7 @@ class FlowController {
 
         profArg .= " --new-window"
         this.edge.StepDelay()
+        this.edge.StepDelay()
         this._checkAbortOrPause()
 
         try {

@@ -69,49 +69,7 @@ class VideoService
     }
   }
 
-  ; Κρατάμε για μελλοντική χρήση (πλέον δεν χρησιμοποιείται στο νέο sampling).
-  _SampleClientPixel(hWnd, xf, yf, &colBgr) {
-    colBgr := ""
-    local cX, cY, cW, cH
-    this._GetClientMetrics(hWnd, &cX, &cY, &cW, &cH)
-    if (cW <= 0) {
-      return false
-    }
-    local px := 0
-    local py := 0
-    try {
-      px := Floor(cW * xf)
-    } catch Error as e {
-      px := 0
-    }
-    try {
-      py := Floor(cH * yf)
-    } catch Error as e {
-      py := 0
-    }
-    try {
-      px := this._ClampInt(px, 0, cW - 1)
-    } catch Error as e {
-      px := 0
-    }
-    try {
-      py := this._ClampInt(py, 0, cH - 1)
-    } catch Error as e {
-      py := 0
-    }
-    try {
-      colBgr := PixelGetColor(px, py, "Window")
-    } catch Error as e {
-      colBgr := ""
-    }
-    if (colBgr = "") {
-      return false
-    }
-    return true
-  }
-
   _PointInGui(sx, sy, gx, gy, gw, gh) {
-    ; Αποφυγή && / || — nested if
     if (gw > 0) {
       if (gh > 0) {
         if (sx >= gx) {
@@ -129,11 +87,12 @@ class VideoService
   }
 
   ; -----------------------------------------------------
-  ; ΝΕΟ IsPlaying(): 300 δείγματα, ασφαλής περιοχή με περιθώρια,
-  ; αποκλεισμός GUI (προαιρετικά), early-exit όπως πριν.
+  ; ΝΕΟ IsPlaying(): 300 δείγματα, ασφαλής περιοχή,
+  ; αποκλεισμός GUI, early-exit 5 γύρων
   ; -----------------------------------------------------
   IsPlaying(hWnd, logger := 0, guiX := 0, guiY := 0, guiW := 0, guiH := 0) {
-    ; 1) Client metrics
+
+    ; Client metrics
     local cX := 0
     local cY := 0
     local cW := 0
@@ -150,14 +109,12 @@ class VideoService
       return false
     }
 
-    ; 2) Περιθώρια ασφαλείας (ποσοστά)
-    ;    Μεγάλο δεξί περιθώριο για να αποφεύγει το YouTube sidebar.
-    local marginTop := 0.14  ; 14%
-    local marginBottom := 0.14  ; 14%
-    local marginLeft := 0.08  ; 8%
-    local marginRight := 0.34  ; 34%
+    ; Περιθώρια ποσοστού (ασφαλή + YouTube δεξιά)
+    local marginTop := 0.14
+    local marginBottom := 0.14
+    local marginLeft := 0.08
+    local marginRight := 0.34
 
-    ; Εξασφαλίσεις ορίων (χωρίς && / ||)
     if (marginTop < 0.00) {
       marginTop := 0.00
     }
@@ -179,7 +136,7 @@ class VideoService
       marginRight := 0.05
     }
 
-    ; 3) Ορισμός ασφαλούς περιοχής σε pixels (client)
+    ; Περιοχή sampling (σε client pixels)
     local safeX1 := Floor(cW * marginLeft)
     local safeX2 := Floor(cW * (1 - marginRight))
     local safeY1 := Floor(cH * marginTop)
@@ -194,8 +151,7 @@ class VideoService
       safeY2 := cH - 1
     }
 
-    ; 4) Δημιουργία 300 σημείων μέσα στην ασφαλή περιοχή,
-    ;    με απόρριψη όσων «πέφτουν» πάνω στο GUI (σε screen coords).
+    ; 300 ασφαλή σημεία (με αποκλεισμό GUI)
     local pts := []
     local targetCount := 300
     local maxTotalTries := targetCount * 6
@@ -211,23 +167,22 @@ class VideoService
       local py := 0
       try {
         px := Random(safeX1, safeX2)
-      } catch Error as e1 {
+      } catch Error {
         px := safeX1
       }
       try {
         py := Random(safeY1, safeY2)
-      } catch Error as e2 {
+      } catch Error {
         py := safeY1
       }
 
-      ; client -> screen
       local sx := cX + px
       local sy := cY + py
 
       local inGui := false
       try {
         inGui := this._PointInGui(sx, sy, guiX, guiY, guiW, guiH)
-      } catch Error as e3 {
+      } catch Error {
         inGui := false
       }
 
@@ -238,24 +193,16 @@ class VideoService
       pts.Push([px, py])
     }
 
-    ; Αν δεν επαρκούν τα σημεία (ακραία περίπτωση), συμπλήρωσε χωρίς φίλτρο
+    ; Συμπλήρωση σε ακραία περίπτωση
     while (pts.Length < targetCount) {
       local px2 := 0
       local py2 := 0
-      try {
-        px2 := Random(0, cW - 1)
-      } catch Error as e4 {
-        px2 := 0
-      }
-      try {
-        py2 := Random(0, cH - 1)
-      } catch Error as e5 {
-        py2 := 0
-      }
+      try px2 := Random(0, cW - 1)
+      try py2 := Random(0, cH - 1)
       pts.Push([px2, py2])
     }
 
-    ; 5) Προετοιμασία πινάκων A[t]
+    ; Πίνακες 5 γύρων
     local A := []
     local t := 1
     while (t <= 5) {
@@ -264,64 +211,49 @@ class VideoService
       t := t + 1
     }
 
-    ; 6) 5 γύροι sampling με early-exit (όπως πριν)
+    ; Sampling 5 γύρων με early exit
     t := 1
     while (t <= 5) {
-      ; === SAMPLE PHASE ===
+
+      ; SAMPLE PHASE
       local idx := 1
       while (idx <= pts.Length) {
+
         local pxs := 0
         local pys := 0
-        try {
-          pxs := pts[idx][1]
-        } catch Error as e6 {
-          pxs := 0
-        }
-        try {
-          pys := pts[idx][2]
-        } catch Error as e7 {
-          pys := 0
-        }
+        try pxs := pts[idx][1]
+        try pys := pts[idx][2]
 
         local col := ""
         try {
-          ; Σημ.: "Window" => client-relative coords
           col := PixelGetColor(pxs, pys, "Window")
-        } catch Error as e8 {
+        } catch Error {
           col := ""
         }
+
         A[t].Push(col)
         idx := idx + 1
       }
 
       this._DebugLog(logger, "MotionSample round=" t)
 
-      ; === ANALYSIS PHASE (EARLY EXIT) ===
+      ; ANALYSIS PHASE
       if (t >= 2) {
         local changedCount := 0
         idx := 1
+
         while (idx <= pts.Length) {
           local v1 := ""
           local v2 := ""
-          try {
-            v1 := A[t - 1][idx]
-          } catch Error as e9 {
-            v1 := ""
-          }
-          try {
-            v2 := A[t][idx]
-          } catch Error as e10 {
-            v2 := ""
-          }
+
+          try v1 := A[t - 1][idx]
+          try v2 := A[t][idx]
 
           if (v1 != "") {
             if (v2 != "") {
               local diff := 0
-              try {
-                diff := Abs(v1 - v2)
-              } catch Error as e11 {
-                diff := 0
-              }
+              try diff := Abs(v1 - v2)
+
               if (diff > 0x030303) {
                 changedCount := changedCount + 1
               }
@@ -332,8 +264,6 @@ class VideoService
 
         this._DebugLog(logger, "MotionDelta t=" t " changed=" changedCount)
 
-        ; Σημείωση: κρατάμε το ίδιο όριο (>=8) όπως πριν για συμβατότητα.
-        ; Αν θες το προσαρμόζουμε αναλογικά στα 300 σημεία σε επόμενο βήμα.
         if (changedCount >= 8) {
           return true
         }
@@ -342,6 +272,7 @@ class VideoService
       if (t < 5) {
         Sleep(1000)
       }
+
       t := t + 1
     }
 
@@ -349,9 +280,10 @@ class VideoService
   }
 
   ; -----------------------------------------------------
-  ; EnsurePlaying: περνά τα νέα (προαιρετικά) ορίσματα GUI
+  ; EnsurePlaying με GUI-aware IsPlaying
   ; -----------------------------------------------------
   EnsurePlaying(hWnd, logger := 0, guiX := 0, guiY := 0, guiW := 0, guiH := 0) {
+
     local plays := false
     try {
       plays := this.IsPlaying(hWnd, logger, guiX, guiY, guiW, guiH)
@@ -361,11 +293,12 @@ class VideoService
         try logger.Write("⚠️ IsPlaying error: " e.Message)
       }
     }
+
     if (plays) {
       return true
     }
 
-    ; Fallback: click στο κέντρο
+    ; fallback click center
     local cX, cY, cW, cH
     try {
       this._GetClientMetrics(hWnd, &cX, &cY, &cW, &cH)
@@ -375,6 +308,7 @@ class VideoService
       }
       return false
     }
+
     if (cW <= 0) {
       return false
     }
@@ -384,42 +318,24 @@ class VideoService
     try {
       cx := cX + Floor(cW * 0.50)
       cy := cY + Floor(cH * 0.50)
-    } catch Error as e3 {
+    } catch Error {
       cx := cX
       cy := cY
     }
 
-    try {
-      MoveMouseRandom4(cx, cy)
-    } catch Error as e4 {
-      if (logger) {
-        try logger.Write("⚠️ MoveMouseRandom4 error: " e4.Message)
-      }
-    }
+    try MoveMouseRandom4(cx, cy)
     this.StepDelay(80)
-    try {
-      Click(cx, cy)
-    } catch Error as e5 {
-      if (logger) {
-        try logger.Write("⚠️ Click error: " e5.Message)
-      }
-    }
+
+    try Click(cx, cy)
 
     local mid := 0
-    try {
-      mid := Settings.MID_DELAY_MS + 0
-    } catch Error as e6 {
-      mid := 3000
-    }
+    try mid := Settings.MID_DELAY_MS + 0
     this.StepDelay(mid)
 
     try {
       plays := this.IsPlaying(hWnd, logger, guiX, guiY, guiW, guiH)
-    } catch Error as e7 {
+    } catch Error {
       plays := false
-      if (logger) {
-        try logger.Write("⚠️ IsPlaying retry error: " e7.Message)
-      }
     }
 
     if (plays) {

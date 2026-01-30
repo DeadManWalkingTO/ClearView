@@ -31,16 +31,13 @@ class UiController
     try
     {
       c := this._wnd.GetControls()
-
       c["btnStart"].OnEvent("Click", (*) => this.OnStart())
       c["btnPause"].OnEvent("Click", (*) => this.OnPauseResume())
       c["btnStop"].OnEvent("Click", (*) => this.OnStop())
       c["btnCopy"].OnEvent("Click", (*) => this.OnCopyLogs())
       c["btnClear"].OnEvent("Click", (*) => this.OnClearLogs())
       c["btnExit"].OnEvent("Click", (*) => this.OnExitApp())
-
       c["sldProb"].OnEvent("Change", (ctrl, info) => this.SliderProb_Changed(ctrl, info))
-
       c["edtLoopMin"].OnEvent("Change", (ctrl, info := 0) => this.OnLoopMinutesChanged(ctrl, info))
       c["edtLoopMax"].OnEvent("Change", (ctrl, info := 0) => this.OnLoopMinutesChanged(ctrl, info))
     }
@@ -56,17 +53,15 @@ class UiController
       if (this._logger)
       {
         this._logger.Write("ℹ️ Έναρξη Εφαρμογής.")
-        this._logger.Write(Format("ℹ️ Έκδοση: {}", Settings.APP_VERSION))
-        this._logger.Write(Format("ℹ️ Εκτελέσιμο Edge: {}", Settings.EDGE_EXE))
-        this._logger.Write(Format("ℹ️ Προφίλ: {}", Settings.EDGE_PROFILE_NAME))
-        this._logger.Write(Format("ℹ️ Διατήρηση Παραθύρου: {}", Settings.KEEP_EDGE_OPEN ? "Ναι" : "Όχι"))
-        this._logger.Write(Format("ℹ️ Paths: list={} - random={}", Settings.DATA_LIST_TXT, Settings.DATA_RANDOM_TXT))
-        this._logger.Write(Format("ℹ️ Πιθανότητα list1: {}%", Settings.LIST1_PROB_PCT))
-
+        this._logger.Write(Format("ℹ️ Έκδοση: {1}", Settings.APP_VERSION))
+        this._logger.Write(Format("ℹ️ Εκτελέσιμο Edge: {1}", Settings.EDGE_EXE))
+        this._logger.Write(Format("ℹ️ Προφίλ: {1}", Settings.EDGE_PROFILE_NAME))
+        this._logger.Write(Format("ℹ️ Διατήρηση Παραθύρου: {1}", Settings.KEEP_EDGE_OPEN ? "Ναι" : "Όχι"))
+        this._logger.Write(Format("ℹ️ Paths: list={1} - random={2}", Settings.DATA_LIST_TXT, Settings.DATA_RANDOM_TXT))
+        this._logger.Write(Format("ℹ️ Πιθανότητα list1: {1}%", Settings.LIST1_PROB_PCT))
         initMin := Floor((Settings.LOOP_MIN_MS + 0) / 60000)
         initMax := Floor((Settings.LOOP_MAX_MS + 0) / 60000)
-
-        this._logger.Write(Format("ℹ️ Διάστημα αναμονής (λεπτά): {}–{}", initMin, initMax))
+        this._logger.Write(Format("ℹ️ Διάστημα αναμονής (λεπτά): {1}–{2}", initMin, initMax))
       }
     }
     catch Error as eShow
@@ -82,14 +77,12 @@ class UiController
       {
         return
       }
-
       if (this._flow.IsRunning())
       {
         this._logger.SetHeadline("ℹ️ Ήδη Εκτελείται.")
         this._logger.Write("ℹ️ Αγνοήθηκε")
         return
       }
-
       this._flow.StartRun()
     }
     catch Error as eStart
@@ -105,14 +98,12 @@ class UiController
       {
         return
       }
-
       if (!this._flow.IsRunning())
       {
         this._logger.SetHeadline("ℹ️ Δεν Εκτελείται Ροή.")
         this._logger.Write("ℹ️ Αγνοήθηκε")
         return
       }
-
       if (this._flow.TogglePause())
       {
         this._wnd.GetControl("btnPause").Text := "Συνέχεια"
@@ -139,14 +130,12 @@ class UiController
       {
         return
       }
-
       if (!this._flow.IsRunning())
       {
         this._logger.SetHeadline("ℹ️ Δεν Εκτελείται Ροή.")
         this._logger.Write("ℹ️ Αγνοήθηκε")
         return
       }
-
       this._flow.RequestStop()
       this._logger.SetHeadline("🛑 Τερματισμός…")
       this._logger.Write("🛑 Αίτημα Τερματισμού")
@@ -193,7 +182,6 @@ class UiController
     catch Error as eExit
     {
     }
-
     ExitApp
   }
 
@@ -210,9 +198,7 @@ class UiController
     }
   }
 
-  ; --------------------------------------------------------------------
-  ; ΤΕΛΙΟ FIX: πλήρως σταθερή συμπεριφορά UpDown / Edit για χρόνο αναμονής
-  ; --------------------------------------------------------------------
+  ; ---- ΣΤΑΘΕΡΟ FIX: σταθερή συμπεριφορά UpDown/Edit για χρόνο αναμονής ----
   OnLoopMinutesChanged(ctrl, info := 0)
   {
     try
@@ -227,22 +213,18 @@ class UiController
       {
         newMin := 1
       }
-
       if (newMax < 1)
       {
         newMax := 1
       }
-
       if (newMin > 25)
       {
         newMin := 25
       }
-
       if (newMax > 25)
       {
         newMax := 25
       }
-
       if (newMax < newMin)
       {
         newMax := newMin
@@ -256,7 +238,7 @@ class UiController
 
       this._logger.Write(
         Format(
-          "🛠️ Διάστημα αναμονής: {}–{} λεπτά ({}–{} ms)",
+          "🛠️ Διάστημα αναμονής: {1}–{2} λεπτά ({3}–{4} ms)",
           newMin,
           newMax,
           Settings.LOOP_MIN_MS,
