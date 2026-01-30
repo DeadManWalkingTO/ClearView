@@ -19,7 +19,6 @@ class EdgeService {
     if (!this._dirExist(base)) {
       return ""
     }
-
     localState := base "Local State"
     if FileExist(localState) {
       txt := ""
@@ -33,7 +32,6 @@ class EdgeService {
         return dirFromLocal
       }
     }
-
     candidates := ["Default"]
     try {
       Loop Files, base "*", "D" {
@@ -45,7 +43,6 @@ class EdgeService {
     } catch Error as e {
       ; no-op
     }
-
     for _, cand in candidates {
       pref := base cand c.BS "Preferences"
       if !FileExist(pref) {

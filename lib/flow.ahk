@@ -4,7 +4,7 @@
 #Include "regex.ahk"
 #Include "edge.ahk"
 #Include "video.ahk"
-#Include "moves.ahk"   ; ⬅️ ΝΕΟ: για χρήση MoveMouseRandom4
+#Include "moves.ahk" ; για χρήση MoveMouseRandom4
 
 class FlowController {
     __New(log, edge, video, settings) {
@@ -18,7 +18,8 @@ class FlowController {
         this._cycleCount := 0
         this.list1 := []
         this.list2 := []
-        ; --- ορθογώνιο GUI για αποκλεισμό sampling ---
+
+        ; ορθογώνιο GUI για αποκλεισμό sampling
         this.guiX := 0
         this.guiY := 0
         this.guiW := 0
@@ -68,7 +69,7 @@ class FlowController {
         if (this.list1.Length = 0) {
             if (this.list2.Length = 0) {
                 try {
-                    this.log.SetHeadline("❌ Σφάλμα: Άδειες λίστες")
+                    ; Παλαιό: SetHeadline("❌ Σφάλμα: Άδειες λίστες") → αφαιρείται
                     this.log.Write("❌ Και οι 2 λίστες είναι άδειες – η ροή σταματάει.")
                 } catch Error as _e2 {
                 }
@@ -80,19 +81,21 @@ class FlowController {
     StartRun() {
         if this._running {
             try {
-                this.log.SetHeadline("ℹ️ Ήδη Εκτελείται.")
+                ; Παλαιό: SetHeadline("ℹ️ Ήδη Εκτελείται.") → αφαιρείται
                 this.log.Write("ℹ️ Αγνοήθηκε")
             } catch Error as _eStartAlready {
             }
             return
         }
+
         this._running := true
         this._paused := false
         this._stopRequested := false
         this._cycleCount := 0
 
-        ; -------- ΣΩΣΤΟ ΣΗΜΕΙΟ: Φόρτωση λιστών πριν τη ροή --------
+        ; Φόρτωση λιστών πριν τη ροή
         this.LoadIdLists()
+
         try {
             this.log.ShowTimed(
                 "Έναρξη",
@@ -100,7 +103,7 @@ class FlowController {
                 "BH Automation — Έναρξη",
                 "Iconi"
             )
-            this.log.SetHeadline("▶️ Εκκίνηση Ροής…")
+            ; Παλαιό: SetHeadline("▶️ Εκκίνηση Ροής…") → αφαιρείται
             this.log.Write(Format("▶️ Έναρξη Πατήθηκε — {1}", Settings.APP_VERSION))
         } catch Error as _eShow {
         }
@@ -110,7 +113,7 @@ class FlowController {
         } catch Error as eRun {
             try {
                 this.log.Write(Format("❌ Σφάλμα Ροής: {1} — What={2}, File={3}, Line={4}", eRun.Message, eRun.What, eRun.File, eRun.Line))
-                this.log.SetHeadline(Format("❌ Σφάλμα: {1}", eRun.Message))
+                ; Παλαιό: SetHeadline(Format("❌ Σφάλμα: {1}", eRun.Message)) → αφαιρείται
             } catch Error as _eLog {
             }
         }
@@ -118,8 +121,9 @@ class FlowController {
         this._running := false
         this._paused := false
         this._stopRequested := false
+
         try {
-            this.log.SetHeadline("✅ Έτοιμο.")
+            ; Παλαιό: SetHeadline("✅ Έτοιμο.") → αφαιρείται
             this.log.Write("✨ Ροή Ολοκληρώθηκε / Διακόπηκε")
         } catch Error as _eEnd {
         }
@@ -138,17 +142,21 @@ class FlowController {
 
     _run() {
         local profDir := "", profArg := "", hNew := 0
+
         this._checkAbortOrPause()
+
+        ; Εύρεση φακέλου προφίλ
         try {
-            this.log.SetHeadline("🔎 Εύρεση Φακέλου Προφίλ…")
+            ; Παλαιό: SetHeadline("🔎 Εύρεση Φακέλου Προφίλ…") → αντικατάσταση με Write
             this.log.Write(Format("🔎 Εύρεση Φακέλου Προφίλ Με Βάση Το Όνομα: {1}", Settings.EDGE_PROFILE_NAME))
         } catch Error as _eL1 {
         }
 
         profDir := this.edge.ResolveProfileDirByName(Settings.EDGE_PROFILE_NAME)
+
         if (profDir = "") {
             try {
-                this.log.SetHeadline(Format("⚠️ Δεν Βρέθηκε Φάκελος Για: {1}", Settings.EDGE_PROFILE_NAME))
+                ; Παλαιό: SetHeadline("⚠️ Δεν Βρέθηκε Φάκελος Για: {name}") → αφαιρείται
                 this.log.Write("⚠️ Ο Φάκελος Προφίλ Δεν Βρέθηκε — Θα Δοκιμάσω Με Χρήση Του Εμφανιζόμενου Ονόματος Ως Φάκελο")
             } catch Error as _eWarn1 {
             }
@@ -161,7 +169,7 @@ class FlowController {
             }
         } else {
             try {
-                this.log.SetHeadline(Format("📁 Βρέθηκε Φάκελος: {1}", profDir))
+                ; Παλαιό: SetHeadline("📁 Βρέθηκε Φάκελος: {profDir}") → αφαιρείται
                 this.log.Write(Format("📁 Φάκελος Προφίλ: {1}", profDir))
             } catch Error as _eL2 {
             }
@@ -172,38 +180,41 @@ class FlowController {
         this.edge.StepDelay()
         this.edge.StepDelay()
         this._checkAbortOrPause()
+
         try {
-            this.log.SetHeadline("⏩ Άνοιγμα Νέου Παραθύρου Edge…")
+            ; Παλαιό: SetHeadline("⏩ Άνοιγμα Νέου Παραθύρου Edge…") → αφαιρείται
             this.log.Write(Format("⏩ Edge New Window: {1}", profArg))
         } catch Error as _eL3 {
         }
 
-        ; === Εκτέλεση ανοίγματος νέου παραθύρου ===
+        ; Άνοιγμα νέου παραθύρου
         hNew := this.edge.OpenNewWindow(profArg)
         if (!hNew) {
             try {
-                this.log.SetHeadline("❌ Αποτυχία Ανοίγματος Edge.")
+                ; Παλαιό: SetHeadline("❌ Αποτυχία Ανοίγματος Edge.") → αφαιρείται
                 this.log.Write("❌ Αποτυχία Ανοίγματος Νέου Παραθύρου Edge")
             } catch Error as _eL4 {
             }
             return
         }
 
-        ; καθυστέρηση MID_DELAY_MS με log μετά το Edge New Window
+        ; Καθυστέρηση MID_DELAY_MS μετά το Edge New Window
         try {
             this.log.SleepWithLog(Settings.MID_DELAY_MS, "μετά το Edge New Window")
         } catch Error as _eAfterOpen {
         }
 
+        ; Προετοιμασία παραθύρου
         WinActivate("ahk_id " hNew)
         WinWaitActive("ahk_id " hNew, , 5)
         WinMaximize("ahk_id " hNew)
         Sleep(200)
         this.edge.StepDelay()
+
         try {
             quotedName := RegexLib.Str.Quote(Settings.EDGE_PROFILE_NAME)
             readyMsg := Format("Edge έτοιμο για χρήση ({1}).", quotedName)
-            this.log.SetHeadline(Format("✅ Edge Έτοιμο ({1})", Settings.EDGE_PROFILE_NAME))
+            ; Παλαιό: SetHeadline(Format("✅ Edge Έτοιμο ({1})", name)) → αφαιρείται
             this.log.Write("✅ Edge Ready")
             this.log.ShowTimed("EdgeReady", readyMsg, "BH Automation — Edge", "Iconi")
         } catch Error as _eL5 {
@@ -212,7 +223,7 @@ class FlowController {
         this.edge.StepDelay()
         this.edge.NewTab(hNew)
         try {
-            this.log.SetHeadline("➡️ Νέα Καρτέλα Ανοιχτή")
+            ; Παλαιό: SetHeadline("➡️ Νέα Καρτέλα Ανοιχτή") → αφαιρείται
             this.log.Write("➡️ Νέα Καρτέλα (Κενή)")
         } catch Error as _eL6 {
         }
@@ -223,7 +234,7 @@ class FlowController {
         } catch Error as _eL7 {
         }
 
-        ; καθυστέρηση MID_DELAY_MS με log μετά τον καθαρισμό tabs
+        ; Καθυστέρηση MID_DELAY_MS μετά τον καθαρισμό tabs
         try {
             this.log.SleepWithLog(Settings.MID_DELAY_MS, "μετά τον καθαρισμό tabs")
         } catch Error as _eAfterClean {
@@ -256,8 +267,10 @@ class FlowController {
                 this._cycleCount += 1
                 cycleNo := this._cycleCount
                 startTs := FormatTime(A_Now, "yyyy-MM-dd HH:mm:ss")
+
+                ; Παλαιό: μόνο SetHeadline("🔄 Κύκλος #...") → γίνεται Write
                 try {
-                    this.log.SetHeadline(Format("🔄 Κύκλος #{1} σε εξέλιξη…", cycleNo))
+                    this.log.Write(Format("🔄 Κύκλος #{1} σε εξέλιξη…", cycleNo))
                 } catch Error as _eHead {
                 }
 
@@ -286,11 +299,7 @@ class FlowController {
                 } catch Error as _eSleep1 {
                 }
 
-                ; ----------------------------
-                ; 🔸 ΝΕΟ: One-shot action ΜΟΝΟ στην 1η επανάληψη,
-                ; αμέσως μετά την «Καθυστέρηση ... — μετά την πλοήγηση»
-                ; Κάνουμε MoveMouseRandom4 + ένα click στο κέντρο του client.
-                ; ----------------------------
+                ; One-shot δράση μόνο στην 1η επανάληψη
                 if (cycleNo = 1) {
                     local cX := 0, cY := 0, cW := 0, cH := 0
                     try {
@@ -343,13 +352,13 @@ class FlowController {
                     }
                 }
 
-                ; === Αναμονή μετά το detection (όπως πριν) ===
+                ; Αναμονή μετά το detection
                 try {
                     this.log.SleepWithLog(Settings.STEP_DELAY_MS, "μετά το detection")
                 } catch Error as _eSleep2 {
                 }
 
-                ; === Δεύτερος έλεγχος για false positive (υπάρχων) ===
+                ; Δεύτερος έλεγχος για false positive
                 ok2 := false
                 try {
                     ok2 := this.video.IsPlaying(hNew, this.log, this.guiX, this.guiY, this.guiW, this.guiH)
@@ -386,11 +395,11 @@ class FlowController {
                     }
                 }
 
-                ; === Συνέχεια ροής ===
+                ; Συνέχεια ροής
                 waitMs := this._computeRandomWaitMs()
                 try {
                     this.log.Write(Format("⏳ Αναμονή ακριβώς {1} ms ({2}) — κύκλος #{3}", waitMs, this._fmtDurationMs(waitMs), cycleNo))
-                    this.log.SetHeadline(Format("⏳ Αναμονή {1} ms ({2}) — Κύκλος #{3}", waitMs, this._fmtDurationMs(waitMs), cycleNo))
+                    ; Παλαιό: SetHeadline("⏳ Αναμονή ...") → αφαιρείται
                 } catch Error as _eHead2 {
                 }
 
@@ -398,7 +407,7 @@ class FlowController {
 
                 try {
                     this.log.Write(Format("🟢 Τέλος Κύκλου #{1}", cycleNo))
-                    this.log.SetHeadline(Format("🟢 Τέλος Κύκλου #{1}", cycleNo))
+                    ; Παλαιό: SetHeadline("🟢 Τέλος Κύκλου ...") → αφαιρείται
                 } catch Error as _eEndCyc {
                 }
             }
@@ -410,13 +419,13 @@ class FlowController {
             WinWaitClose("ahk_id " hNew, , 5)
             this.edge.StepDelay()
             try {
-                this.log.SetHeadline("✨ Κύκλος Ολοκληρώθηκε.")
+                ; Παλαιό: SetHeadline("✨ Κύκλος Ολοκληρώθηκε.") → αφαιρείται
                 this.log.Write("✨ Ολοκλήρωση Κύκλου")
             } catch Error as _eLogEnd1 {
             }
         } else {
             try {
-                this.log.SetHeadline("✨ Κύκλος Ολοκληρώθηκε (Edge Παραμένει Ανοιχτός).")
+                ; Παλαιό: SetHeadline("✨ Κύκλος Ολοκληρώθηκε (Edge Παραμένει Ανοιχτός).") → αφαιρείται
                 this.log.Write("✨ Ολοκλήρωση Κύκλου (Παραμονή Παραθύρου)")
             } catch Error as _eLogEnd2 {
             }
@@ -424,8 +433,9 @@ class FlowController {
     }
 
     ; =====================================================
-    ; Helpers (ΑΚΡΙΒΩΣ ΟΠΩΣ ΣΤΟ ΔΙΚΟ ΣΟΥ ΑΡΧΕΙΟ)
+    ; Helpers (όπως στο αρχικό)
     ; =====================================================
+
     _readIdsFromFile(path) {
         arr := []
         txt := ""

@@ -15,19 +15,16 @@ class UiWindow
   CreateWindow()
   {
     AppTitle := Settings.APP_TITLE " — " Settings.APP_VERSION
-
     try {
       this._app := Gui("+AlwaysOnTop -Resize -MaximizeBox", AppTitle)
       this._app.SetFont("s10", "Segoe UI")
-    }
-    catch Error {
+    } catch Error {
       MsgBox("Αποτυχία δημιουργίας GUI.", "Σφάλμα", "Iconx")
       ExitApp
     }
 
     guiW := Settings.GUI_MIN_W + 0
     guiH := Settings.GUI_MIN_H + 0
-
     if (guiW < 200)
       guiW := 200
     if (guiH < 200)
@@ -49,56 +46,64 @@ class UiWindow
       y := 12
       gap := 8
 
-      c["btnStart"] := this._app.Add("Button", Format("x{} y{} w90 h28", x, y), "Έναρξη")
-      c["btnPause"] := this._app.Add("Button", Format("x{} y{} w110 h28", x + 90 + gap, y), "Παύση")
-      c["btnStop"] := this._app.Add("Button", Format("x{} y{} w90 h28", x + 90 + gap + 110 + gap, y), "Τερματισμός")
-      c["btnCopy"] := this._app.Add("Button", Format("x{} y{} w110 h28", x + 90 + gap + 110 + gap + 90 + gap, y), "Αντιγραφή Log")
-      c["btnClear"] := this._app.Add("Button", Format("x{} y{} w110 h28", x + 90 + gap + 110 + gap + 90 + gap + 110 + gap, y), "Καθαρισμός Log")
-      c["btnExit"] := this._app.Add("Button", Format("x{} y{} w90 h28",
+      c["btnStart"] := this._app.Add("Button", Format("x{1} y{2} w90 h28", x, y), "Έναρξη")
+      c["btnPause"] := this._app.Add("Button", Format("x{1} y{2} w110 h28", x + 90 + gap, y), "Παύση")
+      c["btnStop"] := this._app.Add("Button", Format("x{1} y{2} w90 h28", x + 90 + gap + 110 + gap, y), "Τερματισμός")
+      c["btnCopy"] := this._app.Add("Button", Format("x{1} y{2} w110 h28", x + 90 + gap + 110 + gap + 90 + gap, y), "Αντιγραφή Log")
+      c["btnClear"] := this._app.Add("Button", Format("x{1} y{2} w110 h28", x + 90 + gap + 110 + gap + 90 + gap + 110 + gap, y), "Καθαρισμός Log")
+      c["btnExit"] := this._app.Add("Button", Format("x{1} y{2} w90 h28",
         x + 90 + gap + 110 + gap + 90 + gap + 110 + gap + 110 + gap, y), "Έξοδος")
 
       ; --- Ενότητα Prob & Loop ---
       secY := y + 28 + 10
 
-      c["txtProbTitle"] := this._app.Add("Text",
-        Format("x{} y{} w300", 12, secY),
-        "Πιθανότητα επιλογής list1 (%)")
+      c["txtProbTitle"] := this._app.Add(
+        "Text",
+        Format("x{1} y{2} w300", 12, secY),
+        "Πιθανότητα επιλογής list1 (%)"
+      )
 
-      c["sldProb"] := this._app.Add("Slider",
-        Format("x{} y{} w150 Range0-100 TickInterval10", 12, secY + 28),
-        Settings.LIST1_PROB_PCT)
+      c["sldProb"] := this._app.Add(
+        "Slider",
+        Format("x{1} y{2} w150 Range0-100 TickInterval10", 12, secY + 28),
+        Settings.LIST1_PROB_PCT
+      )
 
-      c["lblProb"] := this._app.Add("Text",
-        Format("x{} y{}", 12 + 150 + 8, secY + 28),
-        "list1: " Settings.LIST1_PROB_PCT "%")
+      c["lblProb"] := this._app.Add(
+        "Text",
+        Format("x{1} y{2}", 12 + 150 + 8, secY + 28),
+        "list1: " Settings.LIST1_PROB_PCT "%"
+      )
 
       loopBaseX := 12 + 150 + 8 + 70 + 14
       loopBaseY := secY + 28
 
-      c["txtLoopTitle"] := this._app.Add("Text",
-        Format("x{} y{}", loopBaseX, loopBaseY),
-        "Διάστημα (λεπτά):")
+      c["txtLoopTitle"] := this._app.Add("Text", Format("x{1} y{2}", loopBaseX, loopBaseY), "Διάστημα (λεπτά):")
 
-      c["edtLoopMin"] := this._app.Add("Edit",
-        Format("x{} y{} w40 Limit2", loopBaseX + 120 + 6, loopBaseY))
-
+      c["edtLoopMin"] := this._app.Add(
+        "Edit",
+        Format("x{1} y{2} w40 Limit2", loopBaseX + 120 + 6, loopBaseY)
+      )
       c["udLoopMin"] := this._app.Add("UpDown", "Range1-25", this._getInitMinMinutes())
 
-      c["txtLoopTo"] := this._app.Add("Text",
-        Format("x{} y{}", loopBaseX + 120 + 6 + 40 + 6 + 16, loopBaseY),
-        "έως")
+      c["txtLoopTo"] := this._app.Add(
+        "Text",
+        Format("x{1} y{2}", loopBaseX + 120 + 6 + 40 + 6 + 16, loopBaseY),
+        "έως"
+      )
 
-      c["edtLoopMax"] := this._app.Add("Edit",
-        Format("x{} y{} w40 Limit2",
-          loopBaseX + 120 + 6 + 40 + 6 + 16 + 26 + 6, loopBaseY))
-
+      c["edtLoopMax"] := this._app.Add(
+        "Edit",
+        Format("x{1} y{2} w40 Limit2", loopBaseX + 120 + 6 + 40 + 6 + 16 + 26 + 6, loopBaseY)
+      )
       c["udLoopMax"] := this._app.Add("UpDown", "Range1-25", this._getInitMaxMinutes())
 
       ; --- Επικεφαλίδα ---
       headY := loopBaseY + 24 + 10
+
       c["txtHead"] := this._app.Add(
         "Text",
-        Format("x{} y{} w640 h24", 12, headY),
+        Format("x{1} y{2} w640 h24", 12, headY),
         "Έτοιμο. " Settings.APP_VERSION
       )
 
@@ -114,23 +119,20 @@ class UiWindow
 
       c["txtLog"] := this._app.Add(
         "Edit",
-        Format("x{} y{} w{} h{} ReadOnly Multi -Wrap +VScroll",
+        Format("x{1} y{2} w{3} h{4} ReadOnly Multi -Wrap +VScroll",
           12, topLog, logW, logH),
         ""
       )
 
       c["helpLine"] := this._app.Add(
         "Text",
-        Format("x{} y{} w{} h20 cGray",
-          12, (topLog + logH + 6), logW),
+        Format("x{1} y{2} w{3} h20 cGray", 12, (topLog + logH + 6), logW),
         "Η εύρεση διάρκειας έχει αφαιρεθεί πλήρως."
       )
 
-      ; UpDown buddy-linking (ΣΩΣΤΟ)
+      ; Buddy linking
       c["udLoopMin"].Buddy := c["edtLoopMin"]
       c["udLoopMax"].Buddy := c["edtLoopMax"]
-
-      ; ❌ Καμία SetRange εδώ (AHK v2 δεν υποστηρίζει SetRange)
     }
     catch Error as eControls
     {
@@ -144,8 +146,7 @@ class UiWindow
     try {
       this._app.Show("w" Settings.GUI_MIN_W " h" Settings.GUI_MIN_H)
       this._positionBottomRightOnce(this._br_margin)
-    }
-    catch Error {
+    } catch Error {
     }
   }
 
@@ -158,8 +159,7 @@ class UiWindow
       x := waR - W - margin
       y := waB - H - margin
       this._app.Move(x, y)
-    }
-    catch Error {
+    } catch Error {
     }
   }
 
@@ -169,9 +169,7 @@ class UiWindow
       init := Floor((Settings.LOOP_MIN_MS + 0) / 60000)
       if (init > 0)
         return init
-    }
-    catch {
-
+    } catch {
     }
     return Settings.LOOP_MIN_MINUTES + 0
   }
@@ -182,9 +180,7 @@ class UiWindow
       init := Floor((Settings.LOOP_MAX_MS + 0) / 60000)
       if (init > 0)
         return init
-    }
-    catch {
-
+    } catch {
     }
     return Settings.LOOP_MAX_MINUTES + 0
   }
@@ -197,9 +193,7 @@ class UiWindow
     try {
       if this._controls.Has(name)
         return this._controls[name]
-    }
-    catch {
-
+    } catch {
     }
     return 0
   }

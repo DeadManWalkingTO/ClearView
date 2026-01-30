@@ -3,7 +3,6 @@
 #SingleInstance Force
 SetTitleMatchMode(2)
 SetWorkingDir(A_ScriptDir)
-
 ; --- Includes ---
 #Include ..\lib\settings.ahk
 #Include ..\lib\regex.ahk

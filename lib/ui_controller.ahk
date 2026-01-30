@@ -79,7 +79,7 @@ class UiController
       }
       if (this._flow.IsRunning())
       {
-        this._logger.SetHeadline("ℹ️ Ήδη Εκτελείται.")
+        ; Παλαιά διπλή κλήση SetHeadline+Write → διατηρούμε ΜΟΝΟ το Write
         this._logger.Write("ℹ️ Αγνοήθηκε")
         return
       }
@@ -100,20 +100,20 @@ class UiController
       }
       if (!this._flow.IsRunning())
       {
-        this._logger.SetHeadline("ℹ️ Δεν Εκτελείται Ροή.")
+        ; Παλαιό SetHeadline("Δεν Εκτελείται Ροή.") αφαιρείται
         this._logger.Write("ℹ️ Αγνοήθηκε")
         return
       }
       if (this._flow.TogglePause())
       {
         this._wnd.GetControl("btnPause").Text := "Συνέχεια"
-        this._logger.SetHeadline("⏸️ Παύση")
+        ; Παλαιό SetHeadline("⏸️ Παύση") + Write("⏸️ Παύση") → ΜΟΝΟ Write
         this._logger.Write("⏸️ Παύση")
       }
       else
       {
         this._wnd.GetControl("btnPause").Text := "Παύση"
-        this._logger.SetHeadline("▶️ Συνέχεια")
+        ; Παλαιό SetHeadline("▶️ Συνέχεια") + Write("▶️ Συνέχεια") → ΜΟΝΟ Write
         this._logger.Write("▶️ Συνέχεια")
       }
     }
@@ -132,12 +132,12 @@ class UiController
       }
       if (!this._flow.IsRunning())
       {
-        this._logger.SetHeadline("ℹ️ Δεν Εκτελείται Ροή.")
+        ; Παλαιό SetHeadline("Δεν Εκτελείται Ροή.") αφαιρείται
         this._logger.Write("ℹ️ Αγνοήθηκε")
         return
       }
       this._flow.RequestStop()
-      this._logger.SetHeadline("🛑 Τερματισμός…")
+      ; Παλαιό SetHeadline("🛑 Τερματισμός…") + Write("🛑 Αίτημα Τερματισμού") → επιλέγουμε ΕΝΑ μήνυμα
       this._logger.Write("🛑 Αίτημα Τερματισμού")
     }
     catch Error as eStop
@@ -151,8 +151,8 @@ class UiController
     {
       txt := this._wnd.GetControl("txtLog")
       A_Clipboard := txt.Value
+      ; Παλαιό SetHeadline("📋 Αντιγράφηκε") + Write("📋 Αντιγραφή Log στο Πρόχειρο") → ΜΟΝΟ Write
       this._logger.Write("📋 Αντιγραφή Log στο Πρόχειρο")
-      this._logger.SetHeadline("📋 Αντιγράφηκε")
     }
     catch Error as eCopy
     {
@@ -164,7 +164,7 @@ class UiController
     try
     {
       this._logger.Clear()
-      this._logger.SetHeadline("🧼 Καθαρίστηκε")
+      ; Παλαιό SetHeadline("🧼 Καθαρίστηκε") + Write("🧼 Καθαρισμός Log") → ΜΟΝΟ Write
       this._logger.Write("🧼 Καθαρισμός Log")
     }
     catch Error as eClear
@@ -176,7 +176,7 @@ class UiController
   {
     try
     {
-      this._logger.SetHeadline("🚪 Έξοδος")
+      ; Παλαιό SetHeadline("🚪 Έξοδος") + Write("🚪 Τερματισμός") → ΜΟΝΟ Write
       this._logger.Write("🚪 Τερματισμός")
     }
     catch Error as eExit
@@ -198,7 +198,7 @@ class UiController
     }
   }
 
-  ; ---- ΣΤΑΘΕΡΟ FIX: σταθερή συμπεριφορά UpDown/Edit για χρόνο αναμονής ----
+  ; --- ΣΤΑΘΕΡΟ FIX: σταθερή συμπεριφορά UpDown/Edit για χρόνο αναμονής ---
   OnLoopMinutesChanged(ctrl, info := 0)
   {
     try
