@@ -211,6 +211,26 @@ class VideoService
       t := t + 1
     }
 
+
+    ; 🔸 ΝΕΟ: ΠΡΙΝ από το πρώτο sampling (round=1)
+    ; Κάνε MoveMouseRandom4 στο κέντρο του client και μετά περίμενε MID_DELAY_MS.
+    try {
+      local midCX := 0, midCY := 0
+      midCX := cX + Floor(cW * 0.50)
+      midCY := cY + Floor(cH * 0.50)
+      MoveMouseRandom4(midCX, midCY)
+    } catch Error as _eMM {
+      ; no-op
+    }
+    try {
+      local mid := 0
+      mid := Settings.MID_DELAY_MS + 0
+      Sleep(mid)
+    } catch Error as _eMid {
+      ; no-op
+    }
+
+
     ; Sampling 5 γύρων με early exit
     t := 1
     while (t <= 5) {
