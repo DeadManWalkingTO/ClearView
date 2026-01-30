@@ -5,7 +5,10 @@ class Settings {
 
   ; --- Μεταδεδομένα / Εφαρμογή ---
   static APP_TITLE := "BH Automation — Edge/Chryseis"
-  static APP_VERSION := "v4.4.4"
+  static APP_VERSION := "v4.4.8"
+
+  ; Debug για detection
+  static VIDEO_DEBUG := true  ; ή false για απενεργοποίηση
 
   ; --- UI / Popups ---
   static POPUP_T := 3
@@ -28,6 +31,7 @@ class Settings {
   ; --- Χρονισμοί ---
   static EDGE_STEP_DELAY_MS := 1500
   static STEP_DELAY_MS := 5000
+  static MID_DELAY_MS := 3000
 
   ; --- Paths ---
   static DATA_LIST_TXT := "..\\data\\list.txt"
