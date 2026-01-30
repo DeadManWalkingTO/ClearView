@@ -3,11 +3,13 @@
 #Include "settings.ahk"
 #Include "regex.ahk"
 #Include "edge.ahk"
+#Include "video.ahk"
 
 class FlowController {
-  __New(log, edge, settings) {
+  __New(log, edge, video, settings) {
     this.log := log
     this.edge := edge
+    this.video := video
     this.settings := settings
     this._running := false
     this._paused := false
@@ -23,7 +25,8 @@ class FlowController {
     this.list1 := this._readIdsFromFile(Settings.DATA_LIST_TXT)
     this.list2 := this._readIdsFromFile(Settings.DATA_RANDOM_TXT)
     try {
-      this.log.Write(Format("📥 Φόρτωση λιστών: list1={}, list2={}", this.list1.Length, this.list2.Length))
+      this.log.Write(Format("📥 Φόρτωση λιστών: list1={}", this.list1.Length))
+      this.log.Write(Format("📥 Φόρτωση λιστών: list2={}", this.list2.Length))
     } catch Error as _e {
     }
   }
@@ -37,12 +40,10 @@ class FlowController {
       }
       return
     }
-
     this._running := true
     this._paused := false
     this._stopRequested := false
     this._cycleCount := 0
-
     try {
       this.log.ShowTimed(
         "Έναρξη",
@@ -54,7 +55,6 @@ class FlowController {
       this.log.Write(Format("▶️ Έναρξη Πατήθηκε — {}", Settings.APP_VERSION))
     } catch Error as _e {
     }
-
     try {
       this._run()
     } catch Error as e {
@@ -64,11 +64,9 @@ class FlowController {
       } catch Error as _e2 {
       }
     }
-
     this._running := false
     this._paused := false
     this._stopRequested := false
-
     try {
       this.log.SetHeadline("✅ Έτοιμο.")
       this.log.Write("✨ Ροή Ολοκληρώθηκε / Διακόπηκε")
@@ -90,14 +88,12 @@ class FlowController {
 
   _run() {
     local profDir := "", profArg := "", hNew := 0
-
     this._checkAbortOrPause()
     try {
       this.log.SetHeadline("🔎 Εύρεση Φακέλου Προφίλ…")
       this.log.Write(Format("🔎 Εύρεση Φακέλου Προφίλ Με Βάση Το Όνομα: {}", Settings.EDGE_PROFILE_NAME))
     } catch Error as _e {
     }
-
     profDir := this.edge.ResolveProfileDirByName(Settings.EDGE_PROFILE_NAME)
     if (profDir = "") {
       try {
@@ -105,9 +101,7 @@ class FlowController {
         this.log.Write("⚠️ Ο Φάκελος Προφίλ Δεν Βρέθηκε — Θα Δοκιμάσω Με Χρήση Του Εμφανιζόμενου Ονόματος Ως Φάκελο")
       } catch Error as _e {
       }
-
       profArg := "--profile-directory=" RegexLib.Str.Quote(Settings.EDGE_PROFILE_NAME)
-
       quotedName := RegexLib.Str.Quote(Settings.EDGE_PROFILE_NAME)
       warnMsg := Format("Δεν βρέθηκε φάκελος προφίλ για {}. Θα δοκιμάσω με: {}", quotedName, profArg)
       try {
@@ -122,18 +116,14 @@ class FlowController {
       }
       profArg := "--profile-directory=" RegexLib.Str.Quote(profDir)
     }
-
     profArg .= " --new-window"
-
     this.edge.StepDelay()
     this._checkAbortOrPause()
-
     try {
       this.log.SetHeadline("⏩ Άνοιγμα Νέου Παραθύρου Edge…")
       this.log.Write(Format("⏩ Edge New Window: {}", profArg))
     } catch Error as _e {
     }
-
     hNew := this.edge.OpenNewWindow(profArg)
     if (!hNew) {
       try {
@@ -143,13 +133,11 @@ class FlowController {
       }
       return
     }
-
     WinActivate("ahk_id " hNew)
     WinWaitActive("ahk_id " hNew, , 5)
     WinMaximize("ahk_id " hNew)
     Sleep(200)
     this.edge.StepDelay()
-
     try {
       quotedName := RegexLib.Str.Quote(Settings.EDGE_PROFILE_NAME)
       readyMsg := Format("Edge έτοιμο για χρήση ({}).", quotedName)
@@ -158,7 +146,6 @@ class FlowController {
       this.log.ShowTimed("EdgeReady", readyMsg, "BH Automation — Edge", "Iconi")
     } catch Error as _e {
     }
-
     this.edge.StepDelay()
     this.edge.NewTab(hNew)
     try {
@@ -171,7 +158,6 @@ class FlowController {
       this.log.Write("🧹 Καθαρισμός tabs: έκλεισα την άλλη καρτέλα στο νέο παράθυρο (παραμένει η τρέχουσα).")
     } catch Error as _e {
     }
-
     if (Settings.CLOSE_ALL_OTHER_WINDOWS) {
       this.edge.CloseAllOtherWindows(hNew)
       try {
@@ -180,15 +166,13 @@ class FlowController {
       }
     }
 
-    ; ---------------- Continuous loop ----------------
+    ; ---------- Continuous loop ----------
     try {
       loop {
         this._checkAbortOrPause()
-
         this._cycleCount += 1
         cycleNo := this._cycleCount
         startTs := FormatTime(A_Now, "yyyy-MM-dd HH:mm:ss")
-
         try {
           this.log.SetHeadline(Format("🔄 Κύκλος #{} σε εξέλιξη…", cycleNo))
         } catch Error as _eHead1 {
@@ -197,8 +181,13 @@ class FlowController {
         info := this._pickRandomVideo(hNew)
         try {
           lst := (info.useList1 ? "list1" : "list2")
-          this.log.Write(Format("📑 Κύκλος #{} — {} | rand={} | prob={}%", cycleNo, lst, info.r, info.prob))
-          this.log.Write(Format("🆔 ID: {} | 🕒 start={}", info.id, startTs))
+        } catch {
+          lst := "list?"
+        }
+        try {
+          this.log.Write(Format("📑 Κύκλος #{} — {}", cycleNo, lst))
+          this.log.Write(Format("🔢 rand={}  prob={}%", info.r, info.prob))
+          this.log.Write(Format("🔖 ID: {}  🕒 start={}", info.id, startTs))
           this.log.Write(Format("🌐 Πλοήγηση σε: {}", info.url))
         } catch Error as _eHdr {
         }
@@ -209,10 +198,78 @@ class FlowController {
         } catch Error as _eSlp1 {
         }
 
-        ; 🔸 Χρήση της απλοποιημένης μεθόδου
-        this.edge.PlayYouTubeSimple(hNew, this.log)
+        ; ---------- ΝΕΟ: VideoService ----------
         try {
-          this.log.SleepWithLog(Settings.STEP_DELAY_MS, "μετά το play")
+          this.video.EnsurePlayerBarVisible(hNew, this.log)
+        } catch Error as _eV1 {
+        }
+
+        ; Σεβασμός ρύθμισης CLICK_TO_PLAY
+        doClick := true
+        try {
+          doClick := Settings.CLICK_TO_PLAY
+        } catch {
+          doClick := true
+        }
+        if (doClick) {
+          try {
+            this.video.ForcePlay(hNew, this.log)
+          } catch Error as _eV2 {
+          }
+        }
+
+        ok := false
+        try {
+          ok := this.video.WaitUntilPlaying(hNew, Settings.VIDEO_WAIT_TIMEOUT_MS, this.log)
+        } catch Error as _eV3 {
+          ok := false
+        }
+
+        if (ok) {
+          try {
+            this.log.Write("✅ Επιβεβαιώθηκε αναπαραγωγή.")
+          } catch {
+          }
+        } else {
+          ; Τελικό retry: αποστολή 'k' αν επιτρέπεται, και ξανά μικρή αναμονή
+          doSendK := false
+          try {
+            doSendK := Settings.SEND_K_KEY
+          } catch {
+            doSendK := false
+          }
+          if (doSendK) {
+            try {
+              Send("k")
+            } catch {
+            }
+            try {
+              this.log.Write("↻ Τελικό retry: αποστολή 'k'.")
+            } catch {
+            }
+            Sleep(220)
+            try {
+              ok := this.video.WaitUntilPlaying(hNew, 1500, this.log)
+            } catch {
+              ok := false
+            }
+          }
+
+          if (ok) {
+            try {
+              this.log.Write("✅ Επιβεβαιώθηκε αναπαραγωγή (μετά από final retry).")
+            } catch {
+            }
+          } else {
+            try {
+              this.log.Write("⛔ Αποτυχία εκκίνησης αναπαραγωγής.")
+            } catch {
+            }
+          }
+        }
+
+        try {
+          this.log.SleepWithLog(Settings.STEP_DELAY_MS, "μετά το detection")
         } catch Error as _eSlp2 {
         }
 
@@ -223,7 +280,6 @@ class FlowController {
         } catch Error as _eLogWait {
         }
         this._sleepRespectingPauseStop(waitMs, "αναμονή μεταξύ βίντεο")
-
         try {
           this.log.Write(Format("🟢 Τέλος Κύκλου #{}", cycleNo))
           this.log.SetHeadline(Format("🟢 Τέλος Κύκλου #{}", cycleNo))
@@ -252,7 +308,7 @@ class FlowController {
     }
   }
 
-  ; ---------------- Helpers ----------------
+  ; ---------- Helpers ----------
   _readIdsFromFile(path) {
     arr := []
     txt := ""
@@ -277,7 +333,6 @@ class FlowController {
     prob := Settings.LIST1_PROB_PCT
     r := Random(0, 100)
     useList1 := (r < prob)
-
     sel := (useList1 ? this.list1 : this.list2)
     if (sel.Length = 0) {
       sel := (useList1 ? this.list2 : this.list1)
@@ -289,7 +344,6 @@ class FlowController {
       }
       return { useList1: false, id: "", url: "about:blank", r: r, prob: prob }
     }
-
     idx := Random(1, sel.Length)
     pick := sel[idx]
     url := "https://www.youtube.com/watch?v=" pick
@@ -350,8 +404,12 @@ class FlowController {
     rem := Mod(total, 60000)
     s := Floor(rem / 1000)
     msRem := Mod(rem, 1000)
-
-    sTxt := s < 10 ? "0" s : "" s
+    sTxt := ""
+    if (s < 10) {
+      sTxt := "0" s
+    } else {
+      sTxt := "" s
+    }
     msTxt := ""
     if (msRem < 10) {
       msTxt := "00" msRem

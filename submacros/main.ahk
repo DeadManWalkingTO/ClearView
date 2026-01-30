@@ -12,6 +12,7 @@ SetWorkingDir(A_ScriptDir)
 #Include ..\lib\log.ahk
 #Include ..\lib\ui_window.ahk
 #Include ..\lib\ui_controller.ahk
+#Include ..\lib\video.ahk  ; ⬅️ ΝΕΟ
 
 ; --- Bootstrap ---
 try {
@@ -28,7 +29,8 @@ try {
   txtHeadCtrl := wnd.GetControl("txtHead")
   logInst := Logger(txtLogCtrl, txtHeadCtrl)
   edgeSvc := EdgeService(Settings.EDGE_EXE, Settings.EDGE_WIN_SEL)
-  flowCtl := FlowController(logInst, edgeSvc, Settings)
+  videoSvc := VideoService()  ; ⬅️ ΝΕΟ
+  flowCtl := FlowController(logInst, edgeSvc, videoSvc, Settings) ; ⬅️ pass video
 
   ; 3) Controller: bind + events + show
   ui := UiController(wnd)
