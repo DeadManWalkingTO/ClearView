@@ -12,11 +12,12 @@ SetWorkingDir(A_ScriptDir)
 #Include ..\lib\moves.ahk
 #Include ..\lib\lists.ahk
 #Include ..\lib\videopicker.ahk
-#Include ..\lib\flow_loop.ahk   ; ← ΝΕΟ: πρέπει να προηγείται του flow.ahk
-#Include ..\lib\flow.ahk        ; ← χρησιμοποιεί FlowLoop
+#Include ..\lib\flow_loop.ahk  ; ← ΠΡΕΠΕΙ να προηγείται του flow.ahk
+#Include ..\lib\flow.ahk       ; ← χρησιμοποιεί FlowLoop
 #Include ..\lib\log.ahk
 #Include ..\lib\ui_window.ahk
 #Include ..\lib\ui_controller.ahk
+#Include .\setup.ahk           ; ← ΝΕΟ: SetupController (κουμπιά «Εγκατάσταση»)
 
 ; --- Bootstrap ---
 try
@@ -25,7 +26,7 @@ try
   wnd := UiWindow()
   wnd.CreateWindow()
   wnd.AddControls()
-  wnd.ShowWindow() ; ⬅️ Θέση/μέγεθος σταθεροποιούνται εδώ (bottom-right)
+  wnd.ShowWindow()  ; Θέση/μέγεθος σταθεροποιούνται εδώ (bottom-right)
 
   ; 2) Services (controls -> Logger)
   txtLogCtrl := wnd.GetControl("txtLog")
@@ -35,13 +36,21 @@ try
   videoSvc := VideoService()
   flowCtl := FlowController(logInst, edgeSvc, videoSvc, Settings)
 
-  ; 3) Controller: bind + events + show (boot logs)
+  ; 3) SetupController (box «Εγκατάσταση» — κουμπιά 1..4)
+  setupCtl := SetupController(wnd)
+  setupCtl.Init()
+  setupCtl.WireEvents(logInst)  ; placeholder handlers μέχρι να οριστούν πραγματικές ενέργειες
+
+  ; 4) UI Controller: bind + events + show (boot logs)
   ui := UiController(wnd)
   ui.Bind(flowCtl, logInst)
+  ; Ενεργά ΜΟΝΟ κατά την εκκίνηση του UI, και με την Έναρξη γίνονται ανενεργά:
+  ui.BindSetup(setupCtl)
+
   ui.WireEvents()
   ui.Show()
 
-  ; 4) Υπολογισμός ορθογωνίου GUI (screen coords) και πέρασμα στον FlowController
+  ; 5) Υπολογισμός ορθογωνίου GUI (screen coords) και πέρασμα στον FlowController
   guiX := 0
   guiY := 0
   guiW := 0

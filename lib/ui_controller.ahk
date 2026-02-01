@@ -12,6 +12,7 @@ class UiController
     this._wnd := uiWindow
     this._logger := 0
     this._flow := 0
+    this._setup := 0    ; ⬅️ ΝΕΟ: αναφορά στον SetupController
   }
 
   Bind(flowCtl, logger)
@@ -23,6 +24,16 @@ class UiController
     }
     catch Error as eBind
     {
+    }
+  }
+
+  ; ΝΕΟ: δέχεται τον SetupController από το main
+  BindSetup(setupCtl)
+  {
+    try {
+      this._setup := setupCtl
+    } catch {
+      this._setup := 0
     }
   }
 
@@ -67,6 +78,14 @@ class UiController
     catch Error as eShow
     {
     }
+
+    ; ΑΠΑΙΤΗΣΗ: Τα κουμπιά "Εγκατάσταση" ενεργά ΜΟΝΟ στην εκκίνηση UI
+    try {
+      if (this._setup) {
+        this._setup.Enable()   ; ενεργά στο boot
+      }
+    } catch {
+    }
   }
 
   OnStart()
@@ -79,11 +98,27 @@ class UiController
       }
       if (this._flow.IsRunning())
       {
-        ; Παλαιά διπλή κλήση SetHeadline+Write → διατηρούμε ΜΟΝΟ το Write
         this._logger.Write("ℹ️ Αγνοήθηκε")
         return
       }
-      this._flow.StartRun()
+
+      ; Με το πάτημα Έναρξη -> ανενεργά πλέον
+      try {
+        if (this._setup) {
+          this._setup.Disable()
+        }
+      } catch {
+      }
+
+      try
+      {
+        this._flow.StartRun()
+      }
+      catch Error as eRun
+      {
+        ; logging ήδη μέσα στο FlowController
+      }
+      ; ΣΚΟΠΙΜΑ: δεν τα ξανα-ενεργοποιούμε μετά το τέλος
     }
     catch Error as eStart
     {
@@ -100,20 +135,17 @@ class UiController
       }
       if (!this._flow.IsRunning())
       {
-        ; Παλαιό SetHeadline("Δεν Εκτελείται Ροή.") αφαιρείται
         this._logger.Write("ℹ️ Αγνοήθηκε")
         return
       }
       if (this._flow.TogglePause())
       {
         this._wnd.GetControl("btnPause").Text := "Συνέχεια"
-        ; Παλαιό SetHeadline("⏸️ Παύση") + Write("⏸️ Παύση") → ΜΟΝΟ Write
         this._logger.Write("⏸️ Παύση")
       }
       else
       {
         this._wnd.GetControl("btnPause").Text := "Παύση"
-        ; Παλαιό SetHeadline("▶️ Συνέχεια") + Write("▶️ Συνέχεια") → ΜΟΝΟ Write
         this._logger.Write("▶️ Συνέχεια")
       }
     }
@@ -132,13 +164,12 @@ class UiController
       }
       if (!this._flow.IsRunning())
       {
-        ; Παλαιό SetHeadline("Δεν Εκτελείται Ροή.") αφαιρείται
         this._logger.Write("ℹ️ Αγνοήθηκε")
         return
       }
       this._flow.RequestStop()
-      ; Παλαιό SetHeadline("🛑 Τερματισμός…") + Write("🛑 Αίτημα Τερματισμού") → επιλέγουμε ΕΝΑ μήνυμα
       this._logger.Write("🛑 Αίτημα Τερματισμού")
+      ; ΣΚΟΠΙΜΑ: καμία αλλαγή στα κουμπιά εγκατάστασης (μένουν off)
     }
     catch Error as eStop
     {
@@ -151,7 +182,6 @@ class UiController
     {
       txt := this._wnd.GetControl("txtLog")
       A_Clipboard := txt.Value
-      ; Παλαιό SetHeadline("📋 Αντιγράφηκε") + Write("📋 Αντιγραφή Log στο Πρόχειρο") → ΜΟΝΟ Write
       this._logger.Write("📋 Αντιγραφή Log στο Πρόχειρο")
     }
     catch Error as eCopy
@@ -164,7 +194,6 @@ class UiController
     try
     {
       this._logger.Clear()
-      ; Παλαιό SetHeadline("🧼 Καθαρίστηκε") + Write("🧼 Καθαρισμός Log") → ΜΟΝΟ Write
       this._logger.Write("🧼 Καθαρισμός Log")
     }
     catch Error as eClear
@@ -176,7 +205,6 @@ class UiController
   {
     try
     {
-      ; Παλαιό SetHeadline("🚪 Έξοδος") + Write("🚪 Τερματισμός") → ΜΟΝΟ Write
       this._logger.Write("🚪 Τερματισμός")
     }
     catch Error as eExit
@@ -198,7 +226,7 @@ class UiController
     }
   }
 
-  ; --- ΣΤΑΘΕΡΟ FIX: σταθερή συμπεριφορά UpDown/Edit για χρόνο αναμονής ---
+  ; -- ΣΤΑΘΕΡΟ FIX: σταθερή συμπεριφορά UpDown/Edit για χρόνο αναμονής --
   OnLoopMinutesChanged(ctrl, info := 0)
   {
     try

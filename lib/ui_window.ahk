@@ -1,7 +1,6 @@
 ; ==================== lib/ui_window.ahk ====================
 #Requires AutoHotkey v2.0
 #Include "settings.ahk"
-
 class UiWindow
 {
   __New()
@@ -22,14 +21,14 @@ class UiWindow
       MsgBox("Αποτυχία δημιουργίας GUI.", "Σφάλμα", "Iconx")
       ExitApp
     }
-
     guiW := Settings.GUI_MIN_W + 0
     guiH := Settings.GUI_MIN_H + 0
-    if (guiW < 200)
+    if (guiW < 200) {
       guiW := 200
-    if (guiH < 200)
+    }
+    if (guiH < 200) {
       guiH := 200
-
+    }
     this._app.Opt("+MinSize" guiW "x" guiH)
     this._app.Opt("+MaxSize" guiW "x" guiH)
   }
@@ -37,15 +36,13 @@ class UiWindow
   ; Προσθήκη controls με σταθερές συντεταγμένες
   AddControls()
   {
-    try
-    {
+    try {
       c := this._controls
 
       ; --- Επάνω σειρά κουμπιών ---
       x := 12
       y := 12
       gap := 8
-
       c["btnStart"] := this._app.Add("Button", Format("x{1} y{2} w90 h28", x, y), "Έναρξη")
       c["btnPause"] := this._app.Add("Button", Format("x{1} y{2} w110 h28", x + 90 + gap, y), "Παύση")
       c["btnStop"] := this._app.Add("Button", Format("x{1} y{2} w90 h28", x + 90 + gap + 110 + gap, y), "Τερματισμός")
@@ -54,77 +51,182 @@ class UiWindow
       c["btnExit"] := this._app.Add("Button", Format("x{1} y{2} w90 h28",
         x + 90 + gap + 110 + gap + 90 + gap + 110 + gap + 110 + gap, y), "Έξοδος")
 
-      ; --- Ενότητα Prob & Loop ---
+      ; --- Ζώνη κάτω από τα κουμπιά ---
       secY := y + 28 + 10
 
-      c["txtProbTitle"] := this._app.Add(
-        "Text",
-        Format("x{1} y{2} w300", 12, secY),
+      ; =========================================================
+      ; Αριστερό Box: ΠΙΘΑΝΟΤΗΤΑ επιλογής list1 (%) — compact
+      ; =========================================================
+      probGbX := 12
+      probGbY := secY - 8                   ; ελαφρύ «σήκωμα» για τον τίτλο
+      probGbW := 238                        ; στενό: 10 + 150 + 8 + ~60 + 10
+      probGbH := 62
+
+      c["gbProb"] := this._app.Add(
+        "GroupBox",
+        Format("x{1} y{2} w{3} h{4}", probGbX, probGbY, probGbW, probGbH),
         "Πιθανότητα επιλογής list1 (%)"
       )
 
+      ; Εσωτερικά paddings
+      probPadL := 10
+      probPadT := 24
+
+      ; Slider μέσα στο box (150px πλάτος)
       c["sldProb"] := this._app.Add(
         "Slider",
-        Format("x{1} y{2} w150 Range0-100 TickInterval10", 12, secY + 28),
+        Format("x{1} y{2} w150 Range0-100 TickInterval10",
+          probGbX + probPadL, probGbY + probPadT),
         Settings.LIST1_PROB_PCT
       )
 
+      ; Ετικέτα τιμής (στην ίδια γραμμή δεξιά από τον slider)
       c["lblProb"] := this._app.Add(
         "Text",
-        Format("x{1} y{2}", 12 + 150 + 8, secY + 28),
+        Format("x{1} y{2}", probGbX + probPadL + 150 + 8, probGbY + probPadT),
         "list1: " Settings.LIST1_PROB_PCT "%"
       )
 
-      loopBaseX := 12 + 150 + 8 + 70 + 14
-      loopBaseY := secY + 28
+      ; =========================================================
+      ; Μεσαίο Box: ΔΙΑΣΤΗΜΑ (λεπτά) — ΑΚΟΜΗ πιο compact
+      ; =========================================================
+      colGap := 8                            ; μικρό κενό ανάμεσα στα boxes
+      loopGbX := probGbX + probGbW + colGap
+      loopGbY := probGbY
+      loopGbW := 148                         ; χωράει τα 2 πεδία + «έως»
+      loopGbH := 62
 
-      c["txtLoopTitle"] := this._app.Add("Text", Format("x{1} y{2}", loopBaseX, loopBaseY), "Διάστημα (λεπτά):")
+      c["gbLoop"] := this._app.Add(
+        "GroupBox",
+        Format("x{1} y{2} w{3} h{4}", loopGbX, loopGbY, loopGbW, loopGbH),
+        "Διάστημα (λεπτά)"
+      )
 
+      ; Εσωτερικό padding
+      padL := 10
+      padT := 24
+
+      ; --- Ελάχιστο (Edit + UpDown) ---
       c["edtLoopMin"] := this._app.Add(
         "Edit",
-        Format("x{1} y{2} w40 Limit2", loopBaseX + 120 + 6, loopBaseY)
+        Format("x{1} y{2} w40 Limit2", loopGbX + padL, loopGbY + padT)
       )
       c["udLoopMin"] := this._app.Add("UpDown", "Range1-25", this._getInitMinMinutes())
 
+      ; --- "έως" (gap: 6 px) ---
       c["txtLoopTo"] := this._app.Add(
         "Text",
-        Format("x{1} y{2}", loopBaseX + 120 + 6 + 40 + 6 + 16, loopBaseY),
+        Format("x{1} y{2}", loopGbX + padL + 40 + 6, loopGbY + padT + 2),
         "έως"
       )
 
+      ; --- Μέγιστο (Edit + UpDown) ---
       c["edtLoopMax"] := this._app.Add(
         "Edit",
-        Format("x{1} y{2} w40 Limit2", loopBaseX + 120 + 6 + 40 + 6 + 16 + 26 + 6, loopBaseY)
+        Format("x{1} y{2} w40 Limit2", loopGbX + padL + 40 + 6 + 26 + 6, loopGbY + padT)
       )
       c["udLoopMax"] := this._app.Add("UpDown", "Range1-25", this._getInitMaxMinutes())
 
-      ; --- Επικεφαλίδα ---
-      headY := loopBaseY + 24 + 10
+      ; =========================================================
+      ; Δεξί Box: ΕΓΚΑΤΑΣΤΑΣΗ — 4 κουμπιά ("1", "2", "3", "4")
+      ; =========================================================
+      instGbX := loopGbX + loopGbW + colGap
+      instGbY := probGbY
+      ; Υπολογισμός πλάτους για 4 κουμπιά: 10 + (4*40) + (3*6) + 10 = 198
+      instGbW := 198
+      instGbH := 62
 
+      c["gbInstall"] := this._app.Add(
+        "GroupBox",
+        Format("x{1} y{2} w{3} h{4}", instGbX, instGbY, instGbW, instGbH),
+        "Εγκατάσταση"
+      )
 
+      instPadL := 10
+      instPadT := 24
+      btnW := 40
+      btnH := 28
+      btnGap := 6
+
+      ; Κουμπί "1"
+      c["btnInst1"] := this._app.Add(
+        "Button",
+        Format("x{1} y{2} w{3} h{4}",
+          instGbX + instPadL, instGbY + instPadT, btnW, btnH),
+        "1"
+      )
+      ; Κουμπί "2"
+      c["btnInst2"] := this._app.Add(
+        "Button",
+        Format("x{1} y{2} w{3} h{4}",
+          instGbX + instPadL + (btnW + btnGap) * 1, instGbY + instPadT, btnW, btnH),
+        "2"
+      )
+      ; Κουμπί "3"
+      c["btnInst3"] := this._app.Add(
+        "Button",
+        Format("x{1} y{2} w{3} h{4}",
+          instGbX + instPadL + (btnW + btnGap) * 2, instGbY + instPadT, btnW, btnH),
+        "3"
+      )
+      ; Κουμπί "4"
+      c["btnInst4"] := this._app.Add(
+        "Button",
+        Format("x{1} y{2} w{3} h{4}",
+          instGbX + instPadL + (btnW + btnGap) * 3, instGbY + instPadT, btnW, btnH),
+        "4"
+      )
+
+      ; =========================================================
+      ; Headline — ευθυγραμμισμένο με το κείμενο του log
+      ; =========================================================
+      ; Το head κάθεται κάτω από το χαμηλότερο σημείο των 3 boxes
+      headY := probGbY + probGbH
+      if (loopGbY + loopGbH > headY) {
+        headY := loopGbY + loopGbH
+      }
+      if (instGbY + instGbH > headY) {
+        headY := instGbY + instGbH
+      }
+      headY := headY + 8
+
+      headX := 12
+      headW := Settings.GUI_MIN_W - 24
       c["txtHead"] := this._app.Add(
         "Text",
-        Format("x{1} y{2} w640 h24 cBlue", 12, headY),
+        Format("x{1} y{2} w{3} h20 cBlue", headX, headY, headW),
         "Έτοιμο. " Settings.APP_VERSION
       )
 
-
-      ; --- Περιοχή Log ---
-      topLog := headY + 24 + 6
+      ; --- Περιοχή Log (κάτω από το head) ---
+      topLog := headY + 20 + 6
       logW := Settings.GUI_MIN_W - 24
       logH := Settings.GUI_MIN_H - (topLog + 20 + 12)
-
-      if (logW < 200)
+      if (logW < 200) {
         logW := 200
-      if (logH < 0)
+      }
+      if (logH < 0) {
         logH := 0
-
+      }
       c["txtLog"] := this._app.Add(
         "Edit",
         Format("x{1} y{2} w{3} h{4} ReadOnly Multi -Wrap +VScroll",
           12, topLog, logW, logH),
         ""
       )
+
+      ; Μηδενισμός αριστερού/δεξιού margin στο Edit ώστε να συμπέσει ακριβώς με το head
+      try {
+        hwndLog := c["txtLog"].Hwnd
+      } catch {
+        hwndLog := 0
+      }
+      if (hwndLog != 0) {
+        EM_SETMARGINS := 0x00D3
+        EC_LEFTMARGIN := 0x1
+        EC_RIGHTMARGIN := 0x2
+        DllCall("user32\SendMessage", "ptr", hwndLog, "uint", EM_SETMARGINS, "ptr", EC_LEFTMARGIN | EC_RIGHTMARGIN, "ptr", 0)
+      }
 
       c["helpLine"] := this._app.Add(
         "Text",
@@ -135,9 +237,8 @@ class UiWindow
       ; Buddy linking
       c["udLoopMin"].Buddy := c["edtLoopMin"]
       c["udLoopMax"].Buddy := c["edtLoopMax"]
-    }
-    catch Error as eControls
-    {
+
+    } catch Error as eControls {
       MsgBox("Αποτυχία σύνθεσης στοιχείων GUI.`n`n" eControls.Message, "Σφάλμα", "Iconx")
       ExitApp
     }
@@ -169,8 +270,9 @@ class UiWindow
   {
     try {
       init := Floor((Settings.LOOP_MIN_MS + 0) / 60000)
-      if (init > 0)
+      if (init > 0) {
         return init
+      }
     } catch {
     }
     return Settings.LOOP_MIN_MINUTES + 0
@@ -180,8 +282,9 @@ class UiWindow
   {
     try {
       init := Floor((Settings.LOOP_MAX_MS + 0) / 60000)
-      if (init > 0)
+      if (init > 0) {
         return init
+      }
     } catch {
     }
     return Settings.LOOP_MAX_MINUTES + 0
@@ -189,12 +292,12 @@ class UiWindow
 
   GetApp() => this._app
   GetControls() => this._controls
-
   GetControl(name)
   {
     try {
-      if this._controls.Has(name)
+      if this._controls.Has(name) {
         return this._controls[name]
+      }
     } catch {
     }
     return 0
