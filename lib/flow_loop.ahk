@@ -2,13 +2,14 @@
 #Requires AutoHotkey v2.0
 #Include "settings.ahk"
 #Include "videopicker.ahk"
-#Include "moves.ahk"         ; ← χρησιμοποιούμε ClickCenter() & MoveMouseRandom4()
+#Include "moves.ahk"       ; ← ClickCenter(), MoveMouseRandom4()
+#Include "utils.ahk"       ; ← Utils.FormatDurationMs(), Utils.MsToSec(), Utils.RandomInt()
 
 ; FlowLoop:
-; - Τρέχει τον συνεχόμενο κύκλο: Pick -> Navigate -> Ensure -> Recheck/Recover -> Wait.
+; - Τρέχει τον συνεχόμενο κύκλο: Pick -> Navigate -> Ensure -> Wait.
 ; - Δεν ανοίγει/κλείνει Edge· δέχεται ήδη έτοιμο hWnd.
 ; - Διατηρεί pause/stop state, cycle counter και GUI-rect για exclusion στο VideoService.
-; - Τηρεί τους κανόνες AHK v2 (πολυγραμμικά if, πλήρη try/catch, χωρίς &&/||).
+; - Κανόνες: AHK v2, πολυγραμμικά if, πλήρη try/catch, χωρίς &&/||.
 
 class FlowLoop {
     __New(logger, edgeSvc, videoSvc, picker, settings) {
@@ -30,27 +31,29 @@ class FlowLoop {
     }
 
     ; ---- Public API ----
+
     SetGuiRect(x, y, w, h) {
         try {
-            this.guiX := x + 0
+            this.guiX := Utils.TryParseInt(x, 0)
         } catch {
             this.guiX := 0
         }
         try {
-            this.guiY := y + 0
+            this.guiY := Utils.TryParseInt(y, 0)
         } catch {
             this.guiY := 0
         }
         try {
-            this.guiW := w + 0
+            this.guiW := Utils.TryParseInt(w, 0)
         } catch {
             this.guiW := 0
         }
         try {
-            this.guiH := h + 0
+            this.guiH := Utils.TryParseInt(h, 0)
         } catch {
             this.guiH := 0
         }
+
         try {
             if (this.log) {
                 this.log.Write(Format("🧭 GUI rect (loop): x={1} y={2} w={3} h={4}", this.guiX, this.guiY, this.guiW, this.guiH))
@@ -87,11 +90,12 @@ class FlowLoop {
 
         loop {
             this._checkAbortOrPause()
-            this._cycleCount += 1
 
+            this._cycleCount += 1
             local cycleNo := this._cycleCount
             local startTs := FormatTime(A_Now, "yyyy-MM-dd HH:mm:ss")
 
+            ; Σήμανση κύκλου
             try {
                 this.log.Write(Format("🔄 Κύκλος #{1} σε εξέλιξη…", cycleNo))
             } catch {
@@ -104,6 +108,7 @@ class FlowLoop {
             } catch {
                 info := { source: "none", id: "", url: "about:blank" }
             }
+
             try {
                 this.log.Write(Format("📚 Κύκλος #{1} — {2}", cycleNo, info.source))
                 this.log.Write(Format("🔑 ID: {1} 🕒 start={2}", info.id, startTs))
@@ -124,10 +129,9 @@ class FlowLoop {
             } catch {
             }
 
-
-            ; --- Ensure-only flow ---
+            ; --- Ensure-only flow (χωρίς guards/IsPlaying εκτός video.ahk) ---
             attempt := 0
-            maxAttempts := 3
+            maxAttempts := 3      ; 1η + έως 2 ανακτήσεις (προσαρμόσιμο)
 
             while (attempt < maxAttempts) {
                 this._checkAbortOrPause()
@@ -140,6 +144,7 @@ class FlowLoop {
                     ok := false
                 }
 
+                ; Ενδιάμεση αναμονή πριν την επόμενη προσπάθεια Ensure (αν χρειαστεί)
                 if (attempt < maxAttempts) {
                     try {
                         this.log.SleepWithLog(Settings.STEP_DELAY_MS, "αναμονή πριν τον έλεγχο αναπαραγωγής")
@@ -148,12 +153,14 @@ class FlowLoop {
                 }
             }
 
-
-            ; Αναμονή μεταξύ βίντεο (τυχαία εντός min/max)
+            ; --- Αναμονή μεταξύ βίντεο (τυχαία εντός min/max) ---
             waitMs := this._computeRandomWaitMs()
-            SleepMessage := (Format("({1}) — κύκλος #{2}", this._fmtDurationMs(waitMs), cycleNo))
+            SleepMessage := (Format("({1}) — κύκλος #{2}", Utils.FormatDurationMs(waitMs), cycleNo))
+
+            ; Προτιμούμε sec στα runtime logs
             this._sleepRespectingPauseStop(waitMs, SleepMessage)
 
+            ; Τέλος κύκλου
             try {
                 this.log.Write(Format("🟢 Τέλος Κύκλου #{1}", cycleNo))
             } catch {
@@ -164,41 +171,39 @@ class FlowLoop {
     ; ---- Internals ----
 
     _computeRandomWaitMs() {
-        minMs := Settings.LOOP_MIN_MS + 0
-        maxMs := Settings.LOOP_MAX_MS + 0
-        if (maxMs < minMs) {
-            tmp := minMs
-            minMs := maxMs
-            maxMs := tmp
+        minMs := 0
+        maxMs := 0
+        try {
+            minMs := Settings.LOOP_MIN_MS + 0
+        } catch {
+            minMs := 0
         }
         try {
-            return Round(Random(minMs, maxMs))
+            maxMs := Settings.LOOP_MAX_MS + 0
         } catch {
+            maxMs := minMs
+        }
+        ; Utils.RandomInt χειρίζεται τυχόν αντιστροφή ορίων
+        try {
+            return Utils.RandomInt(minMs, maxMs)
+        } catch {
+            return minMs
         }
     }
 
-    _fmtDurationMs(ms) {
-        total := ms + 0
-        if (total < 0) {
-            total := 0
-        }
-        m := Floor(total / 60000)
-        rem := Mod(total, 60000)
-        s := Floor(rem / 1000)
-        msRem := Mod(rem, 1000)
-        sTxt := (s < 10 ? "0" s : "" s)
-        msTxt := (msRem < 10 ? "00" msRem : (msRem < 100 ? "0" msRem : "" msRem))
-        return m "m " sTxt "s " msTxt "ms"
-    }
-
+    ; Χρήση sec στα logs (1 δεκαδικό). Ο ύπνος εκτελείται σε «κομμάτια»,
+    ; σεβόμενος pause/stop, ώστε να μπορεί να διακοπεί έγκαιρα.
     _sleepRespectingPauseStop(ms, label := "") {
         chunk := 500
         elapsed := 0
+
+        ; Log έναρξης σε s
         try {
+            sec := Utils.MsToSec(ms)  ; default 1 δεκαδικό
             if (label != "") {
-                this.log.Write(Format("⏳ Αναμονή σε εξέλιξη ({1} ms — {2})", ms, label))
+                this.log.Write(Format("⏳ Αναμονή σε εξέλιξη ({1} s — {2})", sec, label))
             } else {
-                this.log.Write(Format("⏳ Αναμονή σε εξέλιξη ({1} ms)", ms))
+                this.log.Write(Format("⏳ Αναμονή σε εξέλιξη ({1} s)", sec))
             }
         } catch {
         }
@@ -206,8 +211,10 @@ class FlowLoop {
         while (elapsed < ms) {
             while this._paused
                 Sleep(150)
+
             if this._stopRequested
                 throw Error("Stopped by user")
+
             Sleep(chunk)
             elapsed += chunk
         }
@@ -216,6 +223,7 @@ class FlowLoop {
     _checkAbortOrPause() {
         while this._paused
             Sleep(150)
+
         if this._stopRequested
             throw Error("Stopped by user")
     }

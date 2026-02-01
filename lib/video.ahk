@@ -2,9 +2,9 @@
 #Requires AutoHotkey v2.0
 #Include "moves.ahk"
 #Include "settings.ahk"
+#Include "utils.ahk"
 
 class VideoService {
-
   ; -------------------- Βοηθητικά --------------------
   StepDelay(ms) {
     local d := 0
@@ -68,23 +68,6 @@ class VideoService {
     }
   }
 
-  _PointInGui(sx, sy, gx, gy, gw, gh) {
-    if (gw > 0) {
-      if (gh > 0) {
-        if (sx >= gx) {
-          if (sx < (gx + gw)) {
-            if (sy >= gy) {
-              if (sy < (gy + gh)) {
-                return true
-              }
-            }
-          }
-        }
-      }
-    }
-    return false
-  }
-
   ; -------------------- IsPlaying --------------------
   ; ΝΕΟ IsPlaying(): 300 δείγματα, ασφαλής περιοχή, αποκλεισμός GUI, early-exit 5 γύρων
   IsPlaying(hWnd, logger := 0, guiX := 0, guiY := 0, guiW := 0, guiH := 0) {
@@ -113,7 +96,6 @@ class VideoService {
     local marginBottom := 0.14
     local marginLeft := 0.08
     local marginRight := 0.34
-
     if (marginTop < 0.00) {
       marginTop := 0.00
     }
@@ -175,9 +157,10 @@ class VideoService {
 
       local sx := cX + px
       local sy := cY + py
+
       local inGui := false
       try {
-        inGui := this._PointInGui(sx, sy, guiX, guiY, guiW, guiH)
+        inGui := Utils.IsPointInRect(sx, sy, guiX, guiY, guiW, guiH)
       } catch {
         inGui := false
       }
@@ -246,14 +229,12 @@ class VideoService {
         } catch {
           pys := 0
         }
-
         local col := ""
         try {
           col := PixelGetColor(pxs, pys, "Window")
         } catch {
           col := ""
         }
-
         A[t].Push(col)
         idx := idx + 1
       }
@@ -296,13 +277,11 @@ class VideoService {
           return true
         }
       }
-
       if (t < 5) {
         Sleep(1000)
       }
       t := t + 1
     }
-
     return false
   }
 
@@ -322,14 +301,12 @@ class VideoService {
       }
     }
     if (plays) {
-
       if (logger) {
         try {
           logger.Write("🎵 Παίζει ήδη (χωρίς επιπλέον ενέργεια).")
         } catch {
         }
       }
-
       return true
     }
 
@@ -355,6 +332,7 @@ class VideoService {
     } catch {
       plays := false
     }
+
     if (plays) {
       if (logger) {
         try {

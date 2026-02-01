@@ -8,6 +8,7 @@
 #Include "lists.ahk"
 #Include "videopicker.ahk"
 #Include "flow_loop.ahk"
+#Include "utils.ahk"   ; ← χρήση Utils.TryParseInt για καθάρισμα SetGuiRect
 
 class FlowController {
     __New(log, edge, video, settings) {
@@ -37,32 +38,35 @@ class FlowController {
 
     ; Setter για GUI rect (screen coords)
     SetGuiRect(x, y, w, h) {
+        ; Καθαρή μετατροπή με Utils.TryParseInt
         try {
-            this.guiX := x + 0
+            this.guiX := Utils.TryParseInt(x, 0)
         } catch Error as _e1 {
             this.guiX := 0
         }
         try {
-            this.guiY := y + 0
+            this.guiY := Utils.TryParseInt(y, 0)
         } catch Error as _e2 {
             this.guiY := 0
         }
         try {
-            this.guiW := w + 0
+            this.guiW := Utils.TryParseInt(w, 0)
         } catch Error as _e3 {
             this.guiW := 0
         }
         try {
-            this.guiH := h + 0
+            this.guiH := Utils.TryParseInt(h, 0)
         } catch Error as _e4 {
             this.guiH := 0
         }
+
         try {
             if (this.log) {
                 this.log.Write(Format("🧭 GUI rect set: x={1} y={2} w={3} h={4}", this.guiX, this.guiY, this.guiW, this.guiH))
             }
         } catch Error as _e5 {
         }
+
         ; Αν υπάρχει ήδη loop, συγχρονίζουμε το rect και εκεί
         try {
             if (this._loop) {
@@ -128,6 +132,7 @@ class FlowController {
         this._running := false
         this._paused := false
         this._stopRequested := false
+
         try {
             this.log.Write("✨ Ροή Ολοκληρώθηκε / Διακόπηκε")
         } catch Error as _eEnd {
@@ -137,7 +142,9 @@ class FlowController {
     TogglePause() {
         if !this._running
             return false
+
         this._paused := !this._paused
+
         ; Προώθηση στο ενεργό loop, αν υπάρχει
         try {
             if (this._loop) {
@@ -170,6 +177,7 @@ class FlowController {
         }
 
         profDir := this.edge.ResolveProfileDirByName(Settings.EDGE_PROFILE_NAME)
+
         if (profDir = "") {
             try {
                 this.log.Write("⚠️ Ο Φάκελος Προφίλ Δεν Βρέθηκε — Θα Δοκιμάσω Με Χρήση Του Εμφανιζόμενου Ονόματος Ως Φάκελο")
@@ -189,6 +197,7 @@ class FlowController {
             }
             profArg := "--profile-directory=" RegexLib.Str.Quote(profDir)
         }
+
         profArg .= " --new-window"
 
         this.edge.StepDelay()
@@ -237,6 +246,7 @@ class FlowController {
             this.log.Write("➡️ Νέα Καρτέλα (Κενή)")
         } catch Error as _eL6 {
         }
+
         this.edge.CloseOtherTabsInNewWindow(hNew)
         try {
             this.log.Write("🧹 Καθαρισμός tabs: έκλεισα την άλλη καρτέλα στο νέο παράθυρο (παραμένει η τρέχουσα).")
