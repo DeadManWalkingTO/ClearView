@@ -158,10 +158,10 @@ class Initializer
     {
       try {
         if (logger) {
-          logger.Write("✅ Η έκδοση της εφαρμογής είναι η τελευταία.")
+          logger.Write("✅ Η έκδοση της εφαρμογής είναι η τελευταία. local=" info.localVer " → remote=" info.remoteVer ".")
         }
         if (helpCtrl) {
-          helpCtrl.Text := "✅ Η έκδοση της εφαρμογής είναι η τελευταία."
+          helpCtrl.Text := "✅ Η έκδοση της εφαρμογής είναι η τελευταία.: local=" info.localVer " → remote=" info.remoteVer "."
         }
       } catch {
       }
@@ -172,10 +172,10 @@ class Initializer
     {
       try {
         if (logger) {
-          logger.Write("ℹ️ Η έκδοση της εφαρμογής είναι νεότερη.")
+          logger.Write("ℹ️ Η έκδοση της εφαρμογής είναι νεότερη: local=" info.localVer " → remote=" info.remoteVer ".")
         }
         if (helpCtrl) {
-          helpCtrl.Text := "ℹ️ Η έκδοση της εφαρμογής είναι νεότερη."
+          helpCtrl.Text := "ℹ️ Η έκδοση της εφαρμογής είναι νεότερη: local=" info.localVer " → remote=" info.remoteVer "."
         }
       } catch {
       }
@@ -185,10 +185,10 @@ class Initializer
     ; cmp = -1 → remote newer
     try {
       if (logger) {
-        logger.Write("⬇️ Διαθέσιμη νεότερη έκδοση: local=" info.localVer " → remote=" info.remoteVer)
+        logger.Write("⬇️ Διαθέσιμη νεότερη έκδοση: local=" info.localVer " → remote=" info.remoteVer ".")
       }
       if (helpCtrl) {
-        helpCtrl.Text := "⬇️ Διαθέσιμη νεότερη έκδοση (" info.localVer " → " info.remoteVer ")."
+        helpCtrl.Text := "⬇️ Διαθέσιμη νεότερη έκδοση: local=" info.localVer " → remote=" info.remoteVer "."
       }
     } catch {
     }
