@@ -44,12 +44,21 @@ class Initializer
   ; Ελαφρύς έλεγχος έκδοσης (log only) με micro‑retry & ρητή κάλυψη local-miss.
 
 
-  static BootVersionCheck(logger, timeoutMs := 3000)
+  static BootVersionCheck(logger, timeoutMs := 3000, wnd := 0)
   {
+    helpCtrl := 0
+    try {
+      if (wnd) {
+        helpCtrl := wnd.GetControl("helpLine")
+      }
+    } catch {
+      helpCtrl := 0
+    }
+
     ; 1) Internet check (NCSI) μέσω SSOT
     if (!Utils.CheckInternet())
     {
-      ; ΠΡΙΝ: MsgBox("Δεν υπάρχει σύνδεση στο Internet...", "Έλεγχος σύνδεσης", "Iconi")
+
       try {
         if (logger) {
           logger.Write("⚠️ Χωρίς σύνδεση Internet. Παράλειψη ελέγχου έκδοσης.")
@@ -110,6 +119,9 @@ class Initializer
         if (logger) {
           logger.Write("✅ Η έκδοση της εφαρμογής είναι η τελευταία.")
         }
+        if (helpCtrl) {
+          helpCtrl.Text := "✅ Η έκδοση της εφαρμογής είναι η τελευταία."
+        }
       } catch {
       }
       return
@@ -122,6 +134,11 @@ class Initializer
         if (logger) {
           logger.Write("ℹ️ Η έκδοση της εφαρμογής είναι νεότερη.")
         }
+
+        if (helpCtrl) {
+          helpCtrl.Text := "ℹ️ Η έκδοση της εφαρμογής είναι νεότερη."
+        }
+
       } catch {
       }
       return
@@ -133,6 +150,9 @@ class Initializer
       try {
         logger.Write("⬇️ Διαθέσιμη νεότερη έκδοση: local=" localVer " → remote=" remoteVer)
       } catch {
+      }
+      if (helpCtrl) {
+        helpCtrl.Text := " ⬇️ Διαθέσιμη νεότερη έκδοση: local = " localVer " → remote = " remoteVer
       }
     }
   }
