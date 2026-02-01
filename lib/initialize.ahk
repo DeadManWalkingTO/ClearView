@@ -47,9 +47,13 @@ class Initializer
   static BootVersionCheck(logger, timeoutMs := 3000)
   {
     ; 1) Internet check (NCSI) μέσω SSOT
-    if (!Utils.CheckInternet()) {
+    if (!Utils.CheckInternet())
+    {
+      ; ΠΡΙΝ: MsgBox("Δεν υπάρχει σύνδεση στο Internet...", "Έλεγχος σύνδεσης", "Iconi")
       try {
-        MsgBox("Δεν υπάρχει σύνδεση στο Internet. Παρακαλώ δοκιμάστε ξανά.", "Έλεγχος σύνδεσης", "Iconi")
+        if (logger) {
+          logger.Write("⚠️ Χωρίς σύνδεση Internet. Παράλειψη ελέγχου έκδοσης.")
+        }
       } catch {
       }
       return
@@ -73,8 +77,11 @@ class Initializer
     localVer := Versions.TryReadLocalAppVersion(settingsPath, logger)
     if (localVer = "")
     {
+      ; ΠΡΙΝ: MsgBox("Αδυναμία ανάγνωσης τοπικής έκδοσης.", "Σφάλμα", "Iconx")
       try {
-        MsgBox("Αδυναμία ανάγνωσης τοπικής έκδοσης.", "Σφάλμα", "Iconx")
+        if (logger) {
+          logger.Write("⛔ Αδυναμία ανάγνωσης τοπικής έκδοσης.")
+        }
       } catch {
       }
       return
@@ -84,8 +91,11 @@ class Initializer
     remoteVer := Versions.TryGetRemoteAppVersion(remoteUrl, 4000, logger)
     if (remoteVer = "")
     {
+      ; ΠΡΙΝ: MsgBox("Αδυναμία ανάγνωσης απομακρυσμένης έκδοσης.", "Σφάλμα", "Iconx")
       try {
-        MsgBox("Αδυναμία ανάγνωσης απομακρυσμένης έκδοσης.", "Σφάλμα", "Iconx")
+        if (logger) {
+          logger.Write("⛔ Αδυναμία ανάγνωσης απομακρυσμένης έκδοσης.")
+        }
       } catch {
       }
       return
@@ -95,23 +105,37 @@ class Initializer
     cmp := Versions.CompareSemVer(localVer, remoteVer)
     if (cmp = 0)
     {
+      ; local = remote → τελευταία έκδοση.
       try {
-        MsgBox("Η έκδοση της εφαρμογής είναι η τελευταία και δεν χρειάζεται αναβάθμιση.", "Εγκατάσταση νέας έκδοσης", "Iconi")
+        if (logger) {
+          logger.Write("✅ Η έκδοση της εφαρμογής είναι η τελευταία.")
+        }
       } catch {
       }
       return
     }
+
     if (cmp = 1)
     {
       ; local > remote → πιθανό dev build. Δεν κάνουμε downgrade.
       try {
-        MsgBox("Τρέχεις νεότερη έκδοση από την απομακρυσμένη. Η αναβάθμιση παραλείπεται.", "Εγκατάσταση νέας έκδοσης", "Iconi")
+        if (logger) {
+          logger.Write("ℹ️ Η έκδοση της εφαρμογής είναι νεότερη.")
+        }
       } catch {
       }
       return
     }
-  }
 
+    ; remote > local (cmp = -1)
+    if (logger)
+    {
+      try {
+        logger.Write("⬇️ Διαθέσιμη νεότερη έκδοση: local=" localVer " → remote=" remoteVer)
+      } catch {
+      }
+    }
+  }
 }
 
 
