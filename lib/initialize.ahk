@@ -2,11 +2,38 @@
 #Requires AutoHotkey v2.0
 #Include "utils.ahk"
 #Include "versions.ahk"
-
 ; Helpers εκκίνησης UI (Internet + helpLine) και ελαφρύς έλεγχος έκδοσης.
 ; Κανόνες: AHK v2, πολυγραμμικά if, πλήρη try/catch, χωρίς &&/\.
+
 class Initializer
 {
+  ; Ενιαίος helper: Θέτει χρώμα και κείμενο στο helpLine με πλήρη ασφάλεια.
+  static _SetHelp(wndOrCtrl, text, colorOpt := "cGray")
+  {
+    helpCtrl := 0
+    try {
+      ; Αν μας έδωσαν wnd, βρες το control. Αν είναι control, το κρατάμε ως έχει.
+      if IsObject(wndOrCtrl) {
+        try {
+          test := wndOrCtrl.GetControl
+          helpCtrl := wndOrCtrl.GetControl("helpLine")
+        } catch {
+          helpCtrl := wndOrCtrl
+        }
+      }
+    } catch {
+      helpCtrl := 0
+    }
+    try {
+      if (helpCtrl) {
+        ; Θέσε χρώμα ΠΡΙΝ από το κείμενο ώστε να μη «αναβοσβήνει» το default
+        helpCtrl.Opt(colorOpt)
+        helpCtrl.Text := text
+      }
+    } catch {
+    }
+  }
+
   ; Ενημερώνει τη helpLine με βάση το Internet check.
   ; Επιστρέφει true/false για online κατάσταση.
   static UpdateConnectivityHelp(wnd, timeoutMs := 3000)
@@ -23,13 +50,12 @@ class Initializer
     } catch {
       ok := false
     }
+    ; Χρώματα: OK → πράσινο, No Internet → κόκκινο
     try {
-      if (helpCtrl) {
-        if (ok) {
-          helpCtrl.Text := "✅ Διαδικτυακή συνδεσιμότητα: OK"
-        } else {
-          helpCtrl.Text := "⚠️ Χωρίς σύνδεση Internet."
-        }
+      if (ok) {
+        Initializer._SetHelp(helpCtrl, "✅ Διαδικτυακή συνδεσιμότητα: OK", "cGreen")
+      } else {
+        Initializer._SetHelp(helpCtrl, "⚠️ Χωρίς σύνδεση Internet.", "cRed")
       }
     } catch {
     }
@@ -37,7 +63,7 @@ class Initializer
   }
 
   ; ΝΕΟ: Καθαρός SSOT έλεγχος εκδόσεων με επιστροφή αποτελέσματος (ΧΩΡΙΣ UI side-effects)
-  ; Επιστρέφει object: { online: bool, localVer: "vX.Y[.Z]", remoteVer: "vX.Y[.Z]", cmp: -1|0|1, error: ""|"no_internet"|"local_missing"|"remote_missing" }
+  ; Επιστρέφει object: { online: bool, localVer: "vX.Y[.Z]", remoteVer: "vX.Y[.Z]", cmp: -1\0\1, error: ""\"no_internet\"\"local_missing\"\"remote_missing" }
   static CheckVersions(logger := 0, timeoutMs := 3000)
   {
     res := { online: false, localVer: "", remoteVer: "", cmp: 0, error: "" }
@@ -126,10 +152,9 @@ class Initializer
     ; Internet off
     if (!info.online)
     {
+      ; Κόκκινο
       try {
-        if (helpCtrl) {
-          helpCtrl.Text := "⚠️ Χωρίς σύνδεση Internet."
-        }
+        Initializer._SetHelp(helpCtrl, "⚠️ Χωρίς σύνδεση Internet.", "cRed")
       } catch {
       }
       return
@@ -139,14 +164,13 @@ class Initializer
     if (info.error != "")
     {
       try {
-        if (helpCtrl) {
-          if (info.error = "local_missing") {
-            helpCtrl.Text := "⛔ Αδυναμία ανάγνωσης τοπικής έκδοσης."
-          } else if (info.error = "remote_missing") {
-            helpCtrl.Text := "⛔ Αδυναμία ανάγνωσης απομακρυσμένης έκδοσης."
-          } else {
-            helpCtrl.Text := "⛔ Άγνωστο σφάλμα ελέγχου έκδοσης."
-          }
+        ; Κόκκινο
+        if (info.error = "local_missing") {
+          Initializer._SetHelp(helpCtrl, "⛔ Αδυναμία ανάγνωσης τοπικής έκδοσης.", "cRed")
+        } else if (info.error = "remote_missing") {
+          Initializer._SetHelp(helpCtrl, "⛔ Αδυναμία ανάγνωσης απομακρυσμένης έκδοσης.", "cRed")
+        } else {
+          Initializer._SetHelp(helpCtrl, "⛔ Άγνωστο σφάλμα ελέγχου έκδοσης.", "cRed")
         }
       } catch {
       }
@@ -160,9 +184,8 @@ class Initializer
         if (logger) {
           logger.Write("✅ Η έκδοση της εφαρμογής είναι η τελευταία. local=" info.localVer " → remote=" info.remoteVer ".")
         }
-        if (helpCtrl) {
-          helpCtrl.Text := "✅ Η έκδοση της εφαρμογής είναι η τελευταία.: local=" info.localVer " → remote=" info.remoteVer "."
-        }
+        ; Πράσινο (και διόρθωση του περιττού ':')
+        Initializer._SetHelp(helpCtrl, "✅ Η έκδοση της εφαρμογής είναι η τελευταία. local=" info.localVer " → remote=" info.remoteVer ".", "cGreen")
       } catch {
       }
       return
@@ -174,9 +197,8 @@ class Initializer
         if (logger) {
           logger.Write("ℹ️ Η έκδοση της εφαρμογής είναι νεότερη: local=" info.localVer " → remote=" info.remoteVer ".")
         }
-        if (helpCtrl) {
-          helpCtrl.Text := "ℹ️ Η έκδοση της εφαρμογής είναι νεότερη: local=" info.localVer " → remote=" info.remoteVer "."
-        }
+        ; Μπλε (ενημερωτικό)
+        Initializer._SetHelp(helpCtrl, "ℹ️ Η έκδοση της εφαρμογής είναι νεότερη: local=" info.localVer " → remote=" info.remoteVer ".", "cBlue")
       } catch {
       }
       return
@@ -187,9 +209,8 @@ class Initializer
       if (logger) {
         logger.Write("⬇️ Διαθέσιμη νεότερη έκδοση: local=" info.localVer " → remote=" info.remoteVer ".")
       }
-      if (helpCtrl) {
-        helpCtrl.Text := "⬇️ Διαθέσιμη νεότερη έκδοση: local=" info.localVer " → remote=" info.remoteVer "."
-      }
+      ; Μωβ (διαθέσιμη αναβάθμιση)
+      Initializer._SetHelp(helpCtrl, "⬇️ Διαθέσιμη νεότερη έκδοση: local=" info.localVer " → remote=" info.remoteVer ".", "cPurple")
     } catch {
     }
   }
