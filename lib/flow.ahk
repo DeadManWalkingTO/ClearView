@@ -106,7 +106,7 @@ class FlowController {
             }
             try {
                 if (online) {
-                    Initializer.BootVersionCheck(this.log, 3000)
+                    Initializer.BootVersionCheck(this.log, 3000, wnd)
                 }
             } catch {
             }
