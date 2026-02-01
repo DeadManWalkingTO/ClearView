@@ -3,7 +3,7 @@
 class Settings {
     ; --- Μεταδεδομένα / Εφαρμογή ---
     static APP_TITLE := "BH Automation — Edge/Chryseis"
-    static APP_VERSION := "v6.8.2"
+    static APP_VERSION := "v6.8.4"
 
     ; --- Debug ---
     static VIDEO_DEBUG := true ; ή false για απενεργοποίηση
@@ -37,12 +37,12 @@ class Settings {
     static CLOSE_ALL_OTHER_WINDOWS := false
 
     ; --- Continuous Loop σε λεπτά ---
-    static LOOP_MIN_MINUTES := 2
-    static LOOP_MAX_MINUTES := 5
+    static LOOP_MIN_MINUTES := 2 ; Assigning default value for minimum loop duration in minutes
+    static LOOP_MAX_MINUTES := 5 ; Assigning default value for maximum loop duration in minutes
 
     ; --- Continuous Loop σε ms ---
-    static LOOP_MIN_MS := 2 * 60 * 1000
-    static LOOP_MAX_MS := 9 * 60 * 1000
+    static LOOP_MIN_MS := Settings.LOOP_MIN_MINUTES * 60 * 1000
+    static LOOP_MAX_MS := Settings.LOOP_MAX_MINUTES * 60 * 1000
 
     ; --- Ιστορικά flags (κρατάμε ό,τι χρειάζεται μόνο) ---
     static SIMPLE_PLAY_FOCUS := true
