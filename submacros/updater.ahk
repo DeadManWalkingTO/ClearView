@@ -218,7 +218,7 @@ class Updater
     ; Εξαγωγή APP_VERSION με 4 βήματα (strict → fallback → γραμμή → οπουδήποτε)
     c := RegexLib.Chars
 
-    ; (1) STRICT
+    ; (1) STRICT  — static APP_VERSION := "<vX.Y[.Z]>" με ίδιο quote αριστερά/δεξιά
     quoteClass := c.RAW_LBRKT . c.BS . c.DQ . RegexLib.Chars.SQT . c.RAW_RBRKT ; ["']
     versionCore := "v" . c.DIGIT . c.PLUS
     versionCore .= c.LPAREN . c.BS . c.DOT . c.DIGIT . c.PLUS . c.RPAREN . c.LBRACE . "0,2" . c.RBRACE
@@ -235,7 +235,7 @@ class Updater
       ; ignore
     }
 
-    ; (2) FALLBACK: χωρίς απαίτηση ίδιου quote
+    ; (2) FALLBACK — χωρίς απαίτηση ίδιου quote
     grpQuoteOpt := quoteClass . c.QMARK
     pat2 := "m)APP_VERSION" . c.WS . c.STAR . c.COLON . c.EQUAL . c.WS . c.STAR
     pat2 .= c.LPAREN . grpQuoteOpt . c.RPAREN
@@ -249,9 +249,10 @@ class Updater
       ; ignore
     }
 
-    ; (3) Σάρωση γραμμής APP_VERSION
+    ; (3) Σάρωση γραμμής APP_VERSION (ασφαλής σύνθεση "m)^.*APP_VERSION.*$")
+    patLine := "m)^" . c.DOT . c.STAR . "APP_VERSION" . c.DOT . c.STAR . "$"
     try {
-      if RegExMatch(text, "m)^.*APP_VERSION.*$", &mLine) {
+      if RegExMatch(text, patLine, &mLine) {
         line := mLine[0]
         line := StrReplace(line, "`r")
         parts := StrSplit(line, ";")
@@ -266,7 +267,11 @@ class Updater
           } catch {
           }
         }
-        if RegExMatch(core, "m)v\d+\(?:\.\d+\){1,2}", &mV) {
+        ; Ασφαλής σύνθεση "m)v\d+(?:\.\d+){1,2}"
+        patVer := "m)v" . c.DIGIT . c.PLUS
+        patVer .= c.LPAREN . c.QMARK . c.COLON . c.BS . c.DOT . c.DIGIT . c.PLUS . c.RPAREN
+        patVer .= c.LBRACE . "1,2" . c.RBRACE
+        if RegExMatch(core, patVer, &mV) {
           return mV[0]
         }
       }
@@ -274,8 +279,10 @@ class Updater
       ; ignore
     }
 
-    ; (4) Last resort
-    pat3 := "m)v\d+\(?:\.\d+\){1,2}"
+    ; (4) Last resort — ίδιο ασφαλές μοτίβο σε ολόκληρο το κείμενο
+    pat3 := "m)v" . c.DIGIT . c.PLUS
+    pat3 .= c.LPAREN . c.QMARK . c.COLON . c.BS . c.DOT . c.DIGIT . c.PLUS . c.RPAREN
+    pat3 .= c.LBRACE . "1,2" . c.RBRACE
     try {
       if RegExMatch(text, pat3, &m3) {
         return m3[0]
