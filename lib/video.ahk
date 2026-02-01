@@ -322,6 +322,14 @@ class VideoService {
       }
     }
     if (plays) {
+
+      if (logger) {
+        try {
+          logger.Write("🎵 Παίζει ήδη (χωρίς επιπλέον ενέργεια).")
+        } catch {
+        }
+      }
+
       return true
     }
 

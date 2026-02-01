@@ -118,88 +118,41 @@ class FlowLoop {
             } catch {
             }
 
-            ; One-shot δράση μόνο στην 1η επανάληψη: ενοποιημένη σε ClickCenter()
-            if (cycleNo = 1) {
-                try {
-                    ; μικρό human-like pre-move delay (0) και προ-κλικ καθυστέρηση 80ms
-                    ClickCenter(hWnd, this.log, 0, 80)
-                } catch {
-                }
+            ; Κλικ στο κέντρο του παραθύρου (μικρό human-like pre-move delay και προ-κλικ καθυστέρηση)
+            try {
+                ClickCenter(hWnd, this.log, 0, 80)
+            } catch {
             }
 
-            ; Ensure playing (με GUI-rect exclusion)
-            ok := false
-            try {
-                ok := this.video.EnsurePlaying(hWnd, this.log, this.guiX, this.guiY, this.guiW, this.guiH)
-            } catch {
+
+            ; --- Ensure-only flow ---
+            attempt := 0
+            maxAttempts := 3
+
+            while (attempt < maxAttempts) {
+                this._checkAbortOrPause()
+                attempt := attempt + 1
+
                 ok := false
-            }
-
-            if (ok) {
                 try {
-                    this.log.Write("🎵 Το βίντεο παίζει.")
+                    ok := this.video.EnsurePlaying(hWnd, this.log, this.guiX, this.guiY, this.guiW, this.guiH)
                 } catch {
-                }
-            } else {
-                try {
-                    this.log.Write("⛔ Το βίντεο ΔΕΝ παίζει.")
-                } catch {
-                }
-            }
-
-            ; Αναμονή μετά το detection
-            try {
-                this.log.SleepWithLog(Settings.STEP_DELAY_MS, "μετά το detection")
-            } catch {
-            }
-
-            ; Δεύτερος έλεγχος για false positive
-            ok2 := false
-            try {
-                ok2 := this.video.IsPlaying(hWnd, this.log, this.guiX, this.guiY, this.guiW, this.guiH)
-            } catch {
-                ok2 := false
-            }
-
-            if (!ok2) {
-                try {
-                    this.log.Write("⚠️ Μετά την αναμονή: δεν ανιχνεύεται κίνηση — πιθανό false positive. Προσπάθεια ανάκτησης…")
-                } catch {
+                    ok := false
                 }
 
-                recOk := false
-                try {
-                    recOk := this.video.EnsurePlaying(hWnd, this.log, this.guiX, this.guiY, this.guiW, this.guiH)
-                } catch {
-                    recOk := false
-                }
-
-                if (recOk) {
+                if (attempt < maxAttempts) {
                     try {
-                        this.log.Write("✅ Ανάκτηση επιτυχής μετά το false positive.")
-                    } catch {
-                    }
-                } else {
-                    try {
-                        this.log.Write("❌ Αποτυχία ανάκτησης μετά το false positive.")
+                        this.log.SleepWithLog(Settings.STEP_DELAY_MS, "αναμονή πριν τον έλεγχο αναπαραγωγής")
                     } catch {
                     }
                 }
-            } else {
-                try {
-                    this.log.Write("✅ Επιβεβαίωση: το βίντεο συνεχίζει να παίζει μετά την αναμονή.")
-                } catch {
-                }
             }
+
 
             ; Αναμονή μεταξύ βίντεο (τυχαία εντός min/max)
             waitMs := this._computeRandomWaitMs()
-            try {
-                this.log.Write(Format("⏳ Αναμονή ακριβώς {1} ms ({2}) — κύκλος #{3}", waitMs, this._fmtDurationMs(waitMs), cycleNo))
-            } catch {
-            }
-
-            this._sleepRespectingPauseStop(waitMs, "αναμονή μεταξύ βίντεο")
+            SleepMessage := (Format("({1}) — κύκλος #{2}", this._fmtDurationMs(waitMs), cycleNo))
+            this._sleepRespectingPauseStop(waitMs, SleepMessage)
 
             try {
                 this.log.Write(Format("🟢 Τέλος Κύκλου #{1}", cycleNo))
