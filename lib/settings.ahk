@@ -3,7 +3,7 @@
 class Settings {
     ; --- Μεταδεδομένα / Εφαρμογή ---
     static APP_TITLE := "BH Automation — Edge/Chryseis"
-    static APP_VERSION := "v6.14.8"
+    static APP_VERSION := "v6.18.2"
 
     ; --- Debug ---
     static VIDEO_DEBUG := true ; ή false για απενεργοποίηση
@@ -46,6 +46,10 @@ class Settings {
 
     ; --- Continuous Loop Delay ---
     static WAIT_TICK_MS := 30000
+
+    ; --- Pre-click policy ---
+    static PRE_CLICK_ENABLED := true   ; Αν είναι true, θα γίνεται προ-κλικ μετά την πλοήγηση
+    static CLICK_OCCURRED_THIS_VIDEO := false  ; Flag για να παρακολουθεί αν έχει γίνει κλικ στο τρέχον βίντεο
 
     ; --- Ιστορικά flags (κρατάμε ό,τι χρειάζεται μόνο) ---
     static SIMPLE_PLAY_FOCUS := true

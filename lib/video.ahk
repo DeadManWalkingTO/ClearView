@@ -301,6 +301,14 @@ class VideoService {
       }
     }
     if (plays) {
+      ; ΜΟΝΟ αν ΔΕΝ έχει προηγηθεί click στο τρέχον βίντεο,
+      ; θεωρούμε ότι πρόκειται για autoplay -> PRE_CLICK_ENABLED := false
+      try {
+        if (!Settings.CLICK_OCCURRED_THIS_VIDEO) {
+          Settings.PRE_CLICK_ENABLED := false
+        }
+      } catch {
+      }
       if (logger) {
         try {
           logger.Write("🎵 Παίζει ήδη (χωρίς επιπλέον ενέργεια).")
@@ -310,10 +318,17 @@ class VideoService {
       return true
     }
 
-    ; 🔁 Fallback: ενιαία κλήση στο ClickCenter (ενοποίηση)
+    ; Fallback click (μόνο όταν επιτρέπεται)
     local clicked := false
     try {
       clicked := ClickCenter(hWnd, logger, 0, 80)
+      ; ΝΕΟ: δηλώνουμε ότι έγινε click στο τρέχον βίντεο
+      try {
+        if (clicked) {
+          Settings.CLICK_OCCURRED_THIS_VIDEO := true
+        }
+      } catch {
+      }
     } catch {
       clicked := false
     }
@@ -334,6 +349,15 @@ class VideoService {
     }
 
     if (plays) {
+      ; Αν χρειάστηκε click για να ξεκινήσει, στο επόμενο βίντεο ΘΕΛΟΥΜΕ προ-κλικ.
+      ; Αν ξεκίνησε χωρίς click σε αυτό το branch (σπάνιο), κρατάμε conservative στάση: αφήνουμε την τιμή ως έχει.
+      try {
+        if (clicked) {
+          Settings.PRE_CLICK_ENABLED := true
+        }
+      } catch {
+      }
+
       if (logger) {
         try {
           if (clicked) {

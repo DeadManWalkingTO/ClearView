@@ -116,6 +116,12 @@ class FlowLoop {
             } catch {
             }
 
+            try {
+                Settings.CLICK_OCCURRED_THIS_VIDEO := false
+            } catch {
+            }
+
+
             ; Πλοήγηση
             this.edge.NavigateToUrl(hWnd, info.url)
             try {
@@ -123,10 +129,22 @@ class FlowLoop {
             } catch {
             }
 
-            ; Κλικ στο κέντρο του παραθύρου (μικρό human-like pre-move delay και προ-κλικ καθυστέρηση)
-            try {
-                ClickCenter(hWnd, this.log, 0, 80)
-            } catch {
+            ; Προ-κλικ ελεγχόμενο από Settings.PRE_CLICK_ENABLED
+            if (Settings.PRE_CLICK_ENABLED) {
+                try {
+                    ClickCenter(hWnd, this.log, 0, 80)
+                    ; ΝΕΟ: σημείωσε ότι έγινε click στο ΤΡΕΧΟΝ βίντεο
+                    try {
+                        Settings.CLICK_OCCURRED_THIS_VIDEO := true
+                    } catch {
+                    }
+                } catch {
+                }
+            } else {
+                try {
+                    this.log.Write("↪️ Skip προ-κλικ (PRE_CLICK_ENABLED=false).")
+                } catch {
+                }
             }
 
             ; --- Ensure-only flow (χωρίς guards/IsPlaying εκτός video.ahk) ---
