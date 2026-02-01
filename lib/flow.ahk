@@ -9,7 +9,8 @@
 #Include "lists.ahk"
 #Include "videopicker.ahk"
 #Include "flow_loop.ahk"
-#Include "utils.ahk" ; ← χρήση Utils.TryParseInt για καθάρισμα SetGuiRect
+#Include "utils.ahk"        ; ← χρήση Utils.TryParseInt για καθάρισμα SetGuiRect
+#Include "initialize.ahk"   ; ⬅️ Helpers εκκίνησης (helpLine + version check)
 
 class FlowController {
     __New(log, edge, video, settings) {
@@ -17,19 +18,25 @@ class FlowController {
         this.edge := edge
         this.video := video
         this.settings := settings
+
         this._running := false
         this._paused := false
         this._stopRequested := false
         this._cycleCount := 0
+
         ; Νέα services για λίστες/επιλογή video και αντικείμενο loop
         this.lists := ListsService()
         this.picker := 0
         this._loop := 0
+
         ; ορθογώνιο GUI για αποκλεισμό sampling (screen coords)
         this.guiX := 0
         this.guiY := 0
         this.guiW := 0
         this.guiH := 0
+
+        ; ⬇️ ΝΕΟ: αποθηκεύουμε αναφορά στο UI window
+        this._wnd := 0
     }
 
     IsRunning() => this._running
@@ -72,6 +79,40 @@ class FlowController {
         }
     }
 
+    ; ⬇️ ΝΕΟ: Setter για το UI window (για χρήση σε boot init)
+    SetWindow(wnd) {
+        try {
+            this._wnd := wnd
+        } catch {
+            this._wnd := 0
+        }
+    }
+
+    ; ⬇️ ΝΕΟ: Εκτελεί update helpLine + ελαφρύ version-check, χρησιμοποιώντας this._wnd.
+    PerformBootInitialization() {
+        wnd := 0
+        try {
+            wnd := this._wnd
+        } catch {
+            wnd := 0
+        }
+
+        if (wnd) {
+            online := false
+            try {
+                online := Initializer.UpdateConnectivityHelp(wnd, 3000)
+            } catch {
+                online := false
+            }
+            try {
+                if (online) {
+                    Initializer.BootVersionCheck(this.log, 3000)
+                }
+            } catch {
+            }
+        }
+    }
+
     ; --- Φόρτωση λιστών + init VideoPicker ---
     _loadListsAndPicker() {
         try {
@@ -94,6 +135,7 @@ class FlowController {
             }
             return
         }
+
         this._running := true
         this._paused := false
         this._stopRequested := false
@@ -153,14 +195,13 @@ class FlowController {
 
     _run() {
         local hNew := 0
-
         this._checkAbortOrPause()
 
-        ; ------------------------------------------------------------------------------------
+        ; ----------------------------------------------
         ; 1) Άνοιγμα ΝΕΟΥ παραθύρου Edge με το προφίλ της εφαρμογής (SSOT):
         ;    - Προσπάθησε πρώτα με StartEdgeWithAppProfileEx (επιστρέφει hWnd).
         ;    - Αν δεν υπάρχει ακόμη, fallback σε StartEdgeWithAppProfile + ανίχνευση νέου hWnd.
-        ; ------------------------------------------------------------------------------------
+        ; ----------------------------------------------
         this.log.Write(Format("🔎 Προσπάθεια εκκίνησης Edge με προφίλ: {1}", Settings.EDGE_PROFILE_NAME))
         try {
             ; Πρώτη επιλογή: έκδοση που επιστρέφει hWnd (περνάμε logger)
@@ -291,7 +332,7 @@ class FlowController {
             throw Error("Stopped by user")
     }
 
-    ; ---------------------------- Βοηθητικό: εύρεση νέου hWnd (diff) ----------------------------
+    ; --- Βοηθητικό: εύρεση νέου hWnd (diff) ---
     static _findNewWindow_(beforeArr, afterArr) {
         seen := Map()
         for _, h in beforeArr {

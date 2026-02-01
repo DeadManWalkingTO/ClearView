@@ -64,6 +64,13 @@ class UiController
       if (this._logger)
       {
         this._logger.Write("ℹ️ Έναρξη Εφαρμογής.")
+        ; ⬇️ ΝΕΟ: ειδοποίηση στο flow ακριβώς μετά το μήνυμα
+        try {
+          if (this._flow) {
+            this._flow.PerformBootInitialization()
+          }
+        } catch {
+        }
         this._logger.Write(Format("ℹ️ Έκδοση: {1}", Settings.APP_VERSION))
         this._logger.Write(Format("ℹ️ Εκτελέσιμο Edge: {1}", Settings.EDGE_EXE))
         this._logger.Write(Format("ℹ️ Προφίλ: {1}", Settings.EDGE_PROFILE_NAME))

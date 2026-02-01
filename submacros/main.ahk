@@ -13,11 +13,12 @@ SetWorkingDir(A_ScriptDir)
 #Include ..\lib\lists.ahk
 #Include ..\lib\videopicker.ahk
 #Include ..\lib\flow_loop.ahk ; ← ΠΡΕΠΕΙ να προηγείται του flow.ahk
-#Include ..\lib\flow.ahk      ; ← χρησιμοποιεί FlowLoop
+#Include ..\lib\flow.ahk     ; ← χρησιμοποιεί FlowLoop
 #Include ..\lib\log.ahk
 #Include ..\lib\ui_window.ahk
 #Include ..\lib\ui_controller.ahk
-#Include ..\lib\utils.ahk     ; ⬅️ ΝΕΟ: SSOT για CheckInternet
+#Include ..\lib\utils.ahk     ; SSOT: CheckInternet
+#Include ..\lib\versions.ahk  ; ⬅️ ΝΕΟ: SSOT για versions (ανάγνωση/σύγκριση)
 #Include .\setup.ahk          ; ← SetupController (κουμπιά «Εγκατάσταση»)
 
 ; --- Bootstrap ---
@@ -27,34 +28,6 @@ try
   wnd := UiWindow()
   wnd.CreateWindow()
   wnd.AddControls()
-
-  ; 1a) Έλεγχος σύνδεσης Internet κατά την εκκίνηση UI και ενημέρωση helpLine
-  ;     (εικονίδιο + μήνυμα)
-  helpCtrl := 0
-  try {
-    helpCtrl := wnd.GetControl("helpLine")
-  } catch {
-    helpCtrl := 0
-  }
-  online := false
-  try {
-    online := Utils.CheckInternet(3000)
-  } catch {
-    online := false
-  }
-  try {
-    if (helpCtrl) {
-      if (online) {
-        ; Πράσινο OK μήνυμα
-        helpCtrl.Text := "✅ Διαδικτυακή συνδεσιμότητα: OK"
-      } else {
-        ; Προειδοποίηση χωρίς internet
-        helpCtrl.Text := "⚠️ Χωρίς σύνδεση Internet."
-      }
-    }
-  } catch {
-  }
-
   wnd.ShowWindow() ; Θέση/μέγεθος σταθεροποιούνται εδώ (bottom-right)
 
   ; 2) Services (controls -> Logger)
@@ -64,6 +37,9 @@ try
   edgeSvc := EdgeService(Settings.EDGE_EXE, Settings.EDGE_WIN_SEL)
   videoSvc := VideoService()
   flowCtl := FlowController(logInst, edgeSvc, videoSvc, Settings)
+  ; ⬇️ ΝΕΟ: Δίνουμε το UiWindow στο flow — και το flow εκτελεί initialization εσωτερικά
+  flowCtl.SetWindow(wnd)
+
 
   ; 3) SetupController (box «Εγκατάσταση» — κουμπιά 1..4)
   setupCtl := SetupController(wnd)
