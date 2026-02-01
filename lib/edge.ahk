@@ -159,7 +159,7 @@ class EdgeService {
   _dirExist(path) => InStr(FileExist(path), "D") > 0
 
   StepDelay() {
-    Sleep(Settings.EDGE_STEP_DELAY_MS)
+    Sleep(Settings.SMALL_DELAY_MS)
   }
 }
 ; ==================== End Of File ====================

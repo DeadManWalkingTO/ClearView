@@ -41,22 +41,22 @@ class FlowController {
         ; Καθαρή μετατροπή με Utils.TryParseInt
         try {
             this.guiX := Utils.TryParseInt(x, 0)
-        } catch Error as _e1 {
+        } catch Error as e {
             this.guiX := 0
         }
         try {
             this.guiY := Utils.TryParseInt(y, 0)
-        } catch Error as _e2 {
+        } catch Error as e {
             this.guiY := 0
         }
         try {
             this.guiW := Utils.TryParseInt(w, 0)
-        } catch Error as _e3 {
+        } catch Error as e {
             this.guiW := 0
         }
         try {
             this.guiH := Utils.TryParseInt(h, 0)
-        } catch Error as _e4 {
+        } catch Error as e {
             this.guiH := 0
         }
 
@@ -64,7 +64,7 @@ class FlowController {
             if (this.log) {
                 this.log.Write(Format("🧭 GUI rect set: x={1} y={2} w={3} h={4}", this.guiX, this.guiY, this.guiW, this.guiH))
             }
-        } catch Error as _e5 {
+        } catch Error as e {
         }
 
         ; Αν υπάρχει ήδη loop, συγχρονίζουμε το rect και εκεί
@@ -72,7 +72,7 @@ class FlowController {
             if (this._loop) {
                 this._loop.SetGuiRect(this.guiX, this.guiY, this.guiW, this.guiH)
             }
-        } catch Error as _e6 {
+        } catch Error as e {
         }
     }
 
@@ -80,13 +80,13 @@ class FlowController {
     _loadListsAndPicker() {
         try {
             this.lists.Load(this.log)
-        } catch Error as eList {
-            throw eList
+        } catch Error as e {
+            throw e
         }
         try {
             this.picker := VideoPicker(this.lists)
-        } catch Error as ePicker {
-            throw Error("VideoPicker init failed: " ePicker.Message)
+        } catch Error as e {
+            throw Error("VideoPicker init failed: " e.Message)
         }
     }
 
@@ -94,7 +94,7 @@ class FlowController {
         if this._running {
             try {
                 this.log.Write("ℹ️ Αγνοήθηκε")
-            } catch Error as _eStartAlready {
+            } catch Error as e {
             }
             return
         }
@@ -107,16 +107,10 @@ class FlowController {
         ; Φόρτωση λιστών πριν τη ροή
         this._loadListsAndPicker()
 
-        try {
-            this.log.ShowTimed(
-                "Έναρξη",
-                Format("Ξεκινάει η ροή αυτοματισμού — έκδοση: {1}", Settings.APP_VERSION),
-                "BH Automation — Έναρξη",
-                "Iconi"
-            )
-            this.log.Write(Format("▶️ Έναρξη Πατήθηκε — {1}", Settings.APP_VERSION))
-        } catch Error as _eShow {
-        }
+        this.log.Write(Format("▶️ Ξεκινάει η ροή αυτοματισμού — έκδοση: {1}", Settings.APP_VERSION))
+
+        ; Καθυστέρηση
+        this.log.SleepWithLog(Settings.SMALL_DELAY_MS)
 
         try {
             this._run()
@@ -125,7 +119,7 @@ class FlowController {
                 this.log.Write(
                     Format("❌ Σφάλμα Ροής: {1} — What={2}, File={3}, Line={4}", eRun.Message, eRun.What, eRun.File, eRun.Line)
                 )
-            } catch Error as _eLog {
+            } catch Error as e {
             }
         }
 
@@ -135,7 +129,7 @@ class FlowController {
 
         try {
             this.log.Write("✨ Ροή Ολοκληρώθηκε / Διακόπηκε")
-        } catch Error as _eEnd {
+        } catch Error as e {
         }
     }
 
@@ -150,7 +144,7 @@ class FlowController {
             if (this._loop) {
                 this._loop.TogglePause()
             }
-        } catch Error as _eT {
+        } catch Error as e {
         }
         return this._paused
     }
@@ -162,7 +156,7 @@ class FlowController {
             if (this._loop) {
                 this._loop.RequestStop()
             }
-        } catch Error as _eS {
+        } catch Error as e {
         }
     }
 
@@ -171,102 +165,84 @@ class FlowController {
         this._checkAbortOrPause()
 
         ; Εύρεση φακέλου προφίλ
-        try {
-            this.log.Write(Format("🔎 Εύρεση Φακέλου Προφίλ Με Βάση Το Όνομα: {1}", Settings.EDGE_PROFILE_NAME))
-        } catch Error as _eL1 {
-        }
 
+        this.log.Write(Format("🔎 Εύρεση Φακέλου Προφίλ Με Βάση Το Όνομα: {1}", Settings.EDGE_PROFILE_NAME))
         profDir := this.edge.ResolveProfileDirByName(Settings.EDGE_PROFILE_NAME)
 
         if (profDir = "") {
             try {
-                this.log.Write("⚠️ Ο Φάκελος Προφίλ Δεν Βρέθηκε — Θα Δοκιμάσω Με Χρήση Του Εμφανιζόμενου Ονόματος Ως Φάκελο")
-            } catch Error as _eWarn1 {
+                this.log.Write("⚠️ Ο Φάκελος Προφίλ Δεν Βρέθηκε")
+                this.log.Write("⚠️ Δοκιμή Με Χρήση Του Εμφανιζόμενου Ονόματος Ως Φάκελο")
+            } catch Error as e {
             }
             profArg := "--profile-directory=" RegexLib.Str.Quote(Settings.EDGE_PROFILE_NAME)
             quotedName := RegexLib.Str.Quote(Settings.EDGE_PROFILE_NAME)
-            warnMsg := Format("Δεν βρέθηκε φάκελος προφίλ για {1}. Θα δοκιμάσω με: {2}", quotedName, profArg)
+
             try {
-                this.log.ShowTimed("Προειδοποίηση Προφίλ", warnMsg, "BH Automation — Προειδοποίηση", "Iconi")
-            } catch Error as _eWarnPopup {
+                warnMsg := Format("Δεν βρέθηκε φάκελος προφίλ για {1}.", quotedName)
+                this.log.Write("⚠️ " warnMsg)
+                warnMsg := Format("Θα δοκιμάσω με: {1}", profArg)
+                this.log.Write("⚠️ " warnMsg)
+            } catch Error as e {
             }
         } else {
             try {
                 this.log.Write(Format("📁 Φάκελος Προφίλ: {1}", profDir))
-            } catch Error as _eL2 {
+            } catch Error as e {
             }
             profArg := "--profile-directory=" RegexLib.Str.Quote(profDir)
         }
+        ; Καθυστέρηση
+        this.log.SleepWithLog(Settings.SMALL_DELAY_MS)
 
         profArg .= " --new-window"
-
-        this.edge.StepDelay()
-        this.edge.StepDelay()
         this._checkAbortOrPause()
-
-        try {
-            this.log.Write(Format("⏩ Edge New Window: {1}", profArg))
-        } catch Error as _eL3 {
-        }
+        this.log.Write(Format("⏩ Edge New Window: {1}", profArg))
 
         ; Άνοιγμα νέου παραθύρου
         hNew := this.edge.OpenNewWindow(profArg)
         if (!hNew) {
             try {
                 this.log.Write("❌ Αποτυχία Ανοίγματος Νέου Παραθύρου Edge")
-            } catch Error as _eL4 {
+            } catch Error as e {
             }
             return
         }
+        ; Καθυστέρηση
+        this.log.SleepWithLog(Settings.MID_DELAY_MS)
 
-        ; Καθυστέρηση μετά το Edge New Window
-        try {
-            this.log.SleepWithLog(Settings.MID_DELAY_MS, "μετά το Edge New Window")
-        } catch Error as _eAfterOpen {
-        }
 
         ; Προετοιμασία παραθύρου
         WinActivate("ahk_id " hNew)
         WinWaitActive("ahk_id " hNew, , 5)
         WinMaximize("ahk_id " hNew)
-        Sleep(200)
-        this.edge.StepDelay()
 
         try {
             quotedName := RegexLib.Str.Quote(Settings.EDGE_PROFILE_NAME)
             readyMsg := Format("Edge έτοιμο για χρήση ({1}).", quotedName)
+            this.log.Write(Format("✅ {1}", readyMsg))
             this.log.Write("✅ Edge Ready")
-            this.log.ShowTimed("EdgeReady", readyMsg, "BH Automation — Edge", "Iconi")
-        } catch Error as _eL5 {
+        } catch Error as e {
         }
+        ; Καθυστέρηση
+        this.log.SleepWithLog(Settings.SMALL_DELAY_MS)
 
-        this.edge.StepDelay()
         this.edge.NewTab(hNew)
-        try {
-            this.log.Write("➡️ Νέα Καρτέλα (Κενή)")
-        } catch Error as _eL6 {
-        }
+        this.log.Write("➡️ Νέα Καρτέλα (Κενή)")
+        ; Καθυστέρηση
+        this.log.SleepWithLog(Settings.SMALL_DELAY_MS)
 
         this.edge.CloseOtherTabsInNewWindow(hNew)
-        try {
-            this.log.Write("🧹 Καθαρισμός tabs: έκλεισα την άλλη καρτέλα στο νέο παράθυρο (παραμένει η τρέχουσα).")
-        } catch Error as _eL7 {
-        }
-
-        ; Καθυστέρηση μετά τον καθαρισμό tabs
-        try {
-            this.log.SleepWithLog(Settings.MID_DELAY_MS, "μετά τον καθαρισμό tabs")
-        } catch Error as _eAfterClean {
-        }
+        this.log.Write("🧹 Καθαρισμός tabs: έκλεισα την άλλη καρτέλα στο νέο παράθυρο (παραμένει η τρέχουσα).")
+        ; Καθυστέρηση
+        this.log.SleepWithLog(Settings.SMALL_DELAY_MS)
 
         if (Settings.CLOSE_ALL_OTHER_WINDOWS) {
             this.edge.CloseAllOtherWindows(hNew)
-            try {
-                this.log.Write("🛠️ Κλείσιμο άλλων παραθύρων: ολοκληρώθηκε (CLOSE_ALL_OTHER_WINDOWS=true).")
-            } catch Error as _eL8 {
-            }
+            this.log.Write("🛠️ Κλείσιμο άλλων παραθύρων: ολοκληρώθηκε (CLOSE_ALL_OTHER_WINDOWS=true).")
+            ; Καθυστέρηση
+            this.log.SleepWithLog(Settings.SMALL_DELAY_MS)
         }
-
         ; ενημερωτικό log για αποκλεισμό GUI κατά το sampling
         try {
             if (this.guiW > 0) {
@@ -274,9 +250,10 @@ class FlowController {
                     this.log.Write(Format("🧭 Ενεργός αποκλεισμός GUI στο sampling: x={1} y={2} w={3} h={4}", this.guiX, this.guiY, this.guiW, this.guiH))
                 }
             }
-        } catch Error as _eLogGui {
+        } catch Error as e {
         }
-
+        ; Καθυστέρηση
+        this.log.SleepWithLog(Settings.SMALL_DELAY_MS)
         ; =========================
         ; 🔁 Continuous loop (με FlowLoop)
         ; =========================
@@ -291,32 +268,30 @@ class FlowController {
         } catch Error as _eNewLoop {
             this._loop := 0
         }
-
         try {
             if (this._loop) {
                 this._loop.Run(hNew)
             }
-        } catch Error as _eLoopBreak {
+        } catch Error as e {
             ; stop/pause/exception καταλήγει εδώ
         }
-
         ; Μετά το τέλος του loop, χειρισμός παραθύρου
         if (!Settings.KEEP_EDGE_OPEN) {
             WinClose("ahk_id " hNew)
             WinWaitClose("ahk_id " hNew, , 5)
-            this.edge.StepDelay()
+            ; Καθυστέρηση
+            this.log.SleepWithLog(Settings.SMALL_DELAY_MS)
             try {
                 this.log.Write("✨ Ολοκλήρωση Κύκλου")
-            } catch Error as _eLogEnd1 {
+            } catch Error as e {
             }
         } else {
             try {
                 this.log.Write("✨ Ολοκλήρωση Κύκλου (Παραμονή Παραθύρου)")
-            } catch Error as _eLogEnd2 {
+            } catch Error as e {
             }
         }
     }
-
     _checkAbortOrPause() {
         while this._paused
             Sleep(150)

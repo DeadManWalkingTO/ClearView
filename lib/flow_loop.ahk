@@ -97,7 +97,7 @@ class FlowLoop {
 
             ; Σήμανση κύκλου
             try {
-                this.log.Write(Format("🔄 Κύκλος #{1} σε εξέλιξη…", cycleNo))
+                this.log.Write(Format("🔄 Κύκλος #{1} - Εκκίνηση", cycleNo))
             } catch {
             }
 
@@ -125,7 +125,7 @@ class FlowLoop {
             ; Πλοήγηση
             this.edge.NavigateToUrl(hWnd, info.url)
             try {
-                this.log.SleepWithLog(Settings.STEP_DELAY_MS, "μετά την πλοήγηση")
+                this.log.SleepWithLog(Settings.LARGE_DELAY_MS, "μετά την πλοήγηση")
             } catch {
             }
 
@@ -165,7 +165,7 @@ class FlowLoop {
                 ; Ενδιάμεση αναμονή πριν την επόμενη προσπάθεια Ensure (αν χρειαστεί)
                 if (attempt < maxAttempts) {
                     try {
-                        this.log.SleepWithLog(Settings.STEP_DELAY_MS, "αναμονή πριν τον έλεγχο αναπαραγωγής")
+                        this.log.SleepWithLog(Settings.LARGE_DELAY_MS, "αναμονή πριν τον έλεγχο αναπαραγωγής")
                     } catch {
                     }
                 }
