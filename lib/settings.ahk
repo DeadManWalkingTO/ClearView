@@ -3,7 +3,7 @@
 class Settings {
     ; --- Μεταδεδομένα / Εφαρμογή ---
     static APP_TITLE := "BH Automation — Edge/Chryseis"
-    static APP_VERSION := "v7.2.2"
+    static APP_VERSION := "v8.2.2"
 
     ; --- Debug ---
     static VIDEO_DEBUG := true ; ή false για απενεργοποίηση

@@ -3,12 +3,13 @@
 #Include "settings.ahk"
 #Include "regex.ahk"
 #Include "edge.ahk"
+#Include "edge_profile.ahk" ; ⬅️ Χρησιμοποιούμε StartEdgeWithAppProfile / Ex
 #Include "video.ahk"
 #Include "moves.ahk"
 #Include "lists.ahk"
 #Include "videopicker.ahk"
 #Include "flow_loop.ahk"
-#Include "utils.ahk"   ; ← χρήση Utils.TryParseInt για καθάρισμα SetGuiRect
+#Include "utils.ahk" ; ← χρήση Utils.TryParseInt για καθάρισμα SetGuiRect
 
 class FlowController {
     __New(log, edge, video, settings) {
@@ -16,17 +17,14 @@ class FlowController {
         this.edge := edge
         this.video := video
         this.settings := settings
-
         this._running := false
         this._paused := false
         this._stopRequested := false
         this._cycleCount := 0
-
         ; Νέα services για λίστες/επιλογή video και αντικείμενο loop
         this.lists := ListsService()
         this.picker := 0
         this._loop := 0
-
         ; ορθογώνιο GUI για αποκλεισμό sampling (screen coords)
         this.guiX := 0
         this.guiY := 0
@@ -59,14 +57,12 @@ class FlowController {
         } catch Error as e {
             this.guiH := 0
         }
-
         try {
             if (this.log) {
                 this.log.Write(Format("🧭 GUI rect set: x={1} y={2} w={3} h={4}", this.guiX, this.guiY, this.guiW, this.guiH))
             }
         } catch Error as e {
         }
-
         ; Αν υπάρχει ήδη loop, συγχρονίζουμε το rect και εκεί
         try {
             if (this._loop) {
@@ -76,7 +72,7 @@ class FlowController {
         }
     }
 
-    ; --- ΝΕΟ: φόρτωση λιστών + init VideoPicker ---
+    ; --- Φόρτωση λιστών + init VideoPicker ---
     _loadListsAndPicker() {
         try {
             this.lists.Load(this.log)
@@ -98,7 +94,6 @@ class FlowController {
             }
             return
         }
-
         this._running := true
         this._paused := false
         this._stopRequested := false
@@ -106,7 +101,6 @@ class FlowController {
 
         ; Φόρτωση λιστών πριν τη ροή
         this._loadListsAndPicker()
-
         this.log.Write(Format("▶️ Ξεκινάει η ροή αυτοματισμού — έκδοση: {1}", Settings.APP_VERSION))
 
         ; Καθυστέρηση
@@ -126,7 +120,6 @@ class FlowController {
         this._running := false
         this._paused := false
         this._stopRequested := false
-
         try {
             this.log.Write("✨ Ροή Ολοκληρώθηκε / Διακόπηκε")
         } catch Error as e {
@@ -136,9 +129,7 @@ class FlowController {
     TogglePause() {
         if !this._running
             return false
-
         this._paused := !this._paused
-
         ; Προώθηση στο ενεργό loop, αν υπάρχει
         try {
             if (this._loop) {
@@ -161,46 +152,47 @@ class FlowController {
     }
 
     _run() {
-        local profDir := "", profArg := "", hNew := 0
+        local hNew := 0
+
         this._checkAbortOrPause()
 
-        ; Εύρεση φακέλου προφίλ
-
-        this.log.Write(Format("🔎 Εύρεση Φακέλου Προφίλ Με Βάση Το Όνομα: {1}", Settings.EDGE_PROFILE_NAME))
-        profDir := this.edge.ResolveProfileDirByName(Settings.EDGE_PROFILE_NAME)
-
-        if (profDir = "") {
-            try {
-                this.log.Write("⚠️ Ο Φάκελος Προφίλ Δεν Βρέθηκε")
-                this.log.Write("⚠️ Δοκιμή Με Χρήση Του Εμφανιζόμενου Ονόματος Ως Φάκελο")
-            } catch Error as e {
-            }
-            profArg := "--profile-directory=" RegexLib.Str.Quote(Settings.EDGE_PROFILE_NAME)
-            quotedName := RegexLib.Str.Quote(Settings.EDGE_PROFILE_NAME)
-
-            try {
-                warnMsg := Format("Δεν βρέθηκε φάκελος προφίλ για {1}.", quotedName)
-                this.log.Write("⚠️ " warnMsg)
-                warnMsg := Format("Θα δοκιμάσω με: {1}", profArg)
-                this.log.Write("⚠️ " warnMsg)
-            } catch Error as e {
-            }
-        } else {
-            try {
-                this.log.Write(Format("📁 Φάκελος Προφίλ: {1}", profDir))
-            } catch Error as e {
-            }
-            profArg := "--profile-directory=" RegexLib.Str.Quote(profDir)
+        ; ------------------------------------------------------------------------------------
+        ; 1) Άνοιγμα ΝΕΟΥ παραθύρου Edge με το προφίλ της εφαρμογής (SSOT):
+        ;    - Προσπάθησε πρώτα με StartEdgeWithAppProfileEx (επιστρέφει hWnd).
+        ;    - Αν δεν υπάρχει ακόμη, fallback σε StartEdgeWithAppProfile + ανίχνευση νέου hWnd.
+        ; ------------------------------------------------------------------------------------
+        this.log.Write(Format("🔎 Προσπάθεια εκκίνησης Edge με προφίλ: {1}", Settings.EDGE_PROFILE_NAME))
+        try {
+            ; Πρώτη επιλογή: έκδοση που επιστρέφει hWnd (περνάμε logger)
+            hNew := StartEdgeWithAppProfileEx(this.edge, "about:blank", true, this.log)
+        } catch {
+            hNew := 0
         }
-        ; Καθυστέρηση
-        this.log.SleepWithLog(Settings.SMALL_DELAY_MS)
 
-        profArg .= " --new-window"
-        this._checkAbortOrPause()
-        this.log.Write(Format("⏩ Edge New Window: {1}", profArg))
+        if (!hNew) {
+            ; Fallback: κάλεσε την απλή StartEdgeWithAppProfile και βρες το νέο παράθυρο
+            ; με σύγκριση λίστας πριν/μετά.
+            try {
+                before := WinGetList(Settings.EDGE_WIN_SEL)
+            } catch {
+                before := []
+            }
+            try {
+                StartEdgeWithAppProfile("about:blank", true, this.log)
+            } catch {
+                ; no-op
+            }
+            tries := 40
+            loop tries {
+                Sleep(250)
+                after := WinGetList(Settings.EDGE_WIN_SEL)
+                hNew := FlowController._findNewWindow_(before, after)
+                if (hNew) {
+                    break
+                }
+            }
+        }
 
-        ; Άνοιγμα νέου παραθύρου
-        hNew := this.edge.OpenNewWindow(profArg)
         if (!hNew) {
             try {
                 this.log.Write("❌ Αποτυχία Ανοίγματος Νέου Παραθύρου Edge")
@@ -208,54 +200,51 @@ class FlowController {
             }
             return
         }
-        ; Καθυστέρηση
-        this.log.SleepWithLog(Settings.MID_DELAY_MS)
 
-
-        ; Προετοιμασία παραθύρου
-        WinActivate("ahk_id " hNew)
-        WinWaitActive("ahk_id " hNew, , 5)
-        WinMaximize("ahk_id " hNew)
-
+        ; Προετοιμασία παραθύρου (σε περίπτωση που η Ex δεν το έτρεξε ήδη)
         try {
-            quotedName := RegexLib.Str.Quote(Settings.EDGE_PROFILE_NAME)
-            readyMsg := Format("Edge έτοιμο για χρήση ({1}).", quotedName)
-            this.log.Write(Format("✅ {1}", readyMsg))
+            WinActivate("ahk_id " hNew)
+            WinWaitActive("ahk_id " hNew, , 5)
+            WinMaximize("ahk_id " hNew)
             this.log.Write("✅ Edge Ready")
-        } catch Error as e {
+        } catch {
         }
+
         ; Καθυστέρηση
         this.log.SleepWithLog(Settings.SMALL_DELAY_MS)
 
-        this.edge.NewTab(hNew)
-        this.log.Write("➡️ Νέα Καρτέλα (Κενή)")
-        ; Καθυστέρηση
-        this.log.SleepWithLog(Settings.SMALL_DELAY_MS)
+        ; Κλείνω τις άλλες καρτέλες (μένει μόνο η active από το pre-warm)
+        try {
+            this.edge.CloseOtherTabsInNewWindow(hNew)
+            this.log.Write("🧹 Καθαρισμός tabs: έκλεισα την άλλη καρτέλα στο νέο παράθυρο (παραμένει η τρέχουσα).")
+        } catch {
+        }
 
-        this.edge.CloseOtherTabsInNewWindow(hNew)
-        this.log.Write("🧹 Καθαρισμός tabs: έκλεισα την άλλη καρτέλα στο νέο παράθυρο (παραμένει η τρέχουσα).")
-        ; Καθυστέρηση
+        ; Κλείσιμο άλλων Edge windows (αν ζητηθεί)
         this.log.SleepWithLog(Settings.SMALL_DELAY_MS)
-
         if (Settings.CLOSE_ALL_OTHER_WINDOWS) {
             this.edge.CloseAllOtherWindows(hNew)
             this.log.Write("🛠️ Κλείσιμο άλλων παραθύρων: ολοκληρώθηκε (CLOSE_ALL_OTHER_WINDOWS=true).")
-            ; Καθυστέρηση
             this.log.SleepWithLog(Settings.SMALL_DELAY_MS)
         }
+
         ; ενημερωτικό log για αποκλεισμό GUI κατά το sampling
         try {
             if (this.guiW > 0) {
                 if (this.guiH > 0) {
-                    this.log.Write(Format("🧭 Ενεργός αποκλεισμός GUI στο sampling: x={1} y={2} w={3} h={4}", this.guiX, this.guiY, this.guiW, this.guiH))
+                    this.log.Write(
+                        Format("🧭 Ενεργός αποκλεισμός GUI στο sampling: x={1} y={2} w={3} h={4}", this.guiX, this.guiY, this.guiW, this.guiH)
+                    )
                 }
             }
-        } catch Error as e {
+        } catch {
         }
-        ; Καθυστέρηση
+
+        ; Μικρή αναμονή
         this.log.SleepWithLog(Settings.SMALL_DELAY_MS)
+
         ; =========================
-        ; 🔁 Continuous loop (με FlowLoop)
+        ; 🔁 Continuous loop (FlowLoop)
         ; =========================
         this._loop := 0
         try {
@@ -268,6 +257,7 @@ class FlowController {
         } catch Error as _eNewLoop {
             this._loop := 0
         }
+
         try {
             if (this._loop) {
                 this._loop.Run(hNew)
@@ -275,6 +265,7 @@ class FlowController {
         } catch Error as e {
             ; stop/pause/exception καταλήγει εδώ
         }
+
         ; Μετά το τέλος του loop, χειρισμός παραθύρου
         if (!Settings.KEEP_EDGE_OPEN) {
             WinClose("ahk_id " hNew)
@@ -292,11 +283,26 @@ class FlowController {
             }
         }
     }
+
     _checkAbortOrPause() {
         while this._paused
             Sleep(150)
         if this._stopRequested
             throw Error("Stopped by user")
+    }
+
+    ; ---------------------------- Βοηθητικό: εύρεση νέου hWnd (diff) ----------------------------
+    static _findNewWindow_(beforeArr, afterArr) {
+        seen := Map()
+        for _, h in beforeArr {
+            seen[h] := true
+        }
+        for _, h in afterArr {
+            if !seen.Has(h) {
+                return h
+            }
+        }
+        return 0
     }
 }
 ; ==================== End Of File ====================
