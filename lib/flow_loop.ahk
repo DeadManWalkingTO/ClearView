@@ -209,8 +209,8 @@ class FlowLoop {
         }
 
         ; -------- ΝΕΟ: αντίστροφος μετρητής ανά 30s --------
-        tickWindowMs := 30000            ; κάθε 30.000 ms
-        nextTickAt := tickWindowMs       ; πότε θα "χτυπήσει" το επόμενο ενημερωτικό
+        tickWindowMs := Settings.WAIT_TICK_MS   ; κάθε 30.000 ms
+        nextTickAt := tickWindowMs              ; πότε θα "χτυπήσει" το επόμενο ενημερωτικό
         ; -----------------------------------------------
 
         while (elapsed < ms) {
