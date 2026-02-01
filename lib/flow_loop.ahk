@@ -208,15 +208,44 @@ class FlowLoop {
         } catch {
         }
 
+        ; -------- ΝΕΟ: αντίστροφος μετρητής ανά 30s --------
+        tickWindowMs := 30000            ; κάθε 30.000 ms
+        nextTickAt := tickWindowMs       ; πότε θα "χτυπήσει" το επόμενο ενημερωτικό
+        ; -----------------------------------------------
+
         while (elapsed < ms) {
+
+            ; Σεβασμός Pause
             while this._paused
                 Sleep(150)
 
+            ; Σεβασμός Stop
             if this._stopRequested
                 throw Error("Stopped by user")
 
+            ; Κοιμήσου μικρά κομμάτια
             Sleep(chunk)
             elapsed += chunk
+
+            ; Αν πέρασαν 30s (ή πολλαπλάσια), δώσε ενημέρωση
+            ; Προσοχή: μπορεί να "ξεπεράσουμε" το nextTickAt λόγω chunk → while για catch-up
+            while (elapsed >= nextTickAt) {
+                remaining := ms - elapsed
+                if (remaining < 0) {
+                    remaining := 0
+                }
+                remSec := Utils.MsToSec(remaining)   ; 1 δεκαδικό
+                try {
+                    if (label != "") {
+                        this.log.Write(Format("⏳ 30s πέρασαν · απομένουν {1} s — {2}", remSec, label))
+                    } else {
+                        this.log.Write(Format("⏳ 30s πέρασαν · απομένουν {1} s", remSec))
+                    }
+                } catch {
+                }
+                ; ετοιμάσου για το επόμενο "χτύπημα"
+                nextTickAt += tickWindowMs
+            }
         }
     }
 
