@@ -2,14 +2,10 @@
 #Requires AutoHotkey v2.0
 ; Στόχος: Καθαρές, stateless, κοινές βοηθητικές συναρτήσεις για όλο το project.
 ; Κανόνες: Χωρίς imports, χωρίς πρόσβαση σε Settings/Logger/UI state.
-; Στυλ: Πολυγραμμικά if, πλήρη try/catch, χωρίς &&/|| (σύμφωνα με τους κανόνες του project).
+; Στυλ: Πολυγραμμικά if, πλήρη try/catch, χωρίς &&/\\ (σύμφωνα με τους κανόνες του project).
 
 class Utils {
-
-  ; ----------------------------------------------------
-  ; Αριθμητικά / Έλεγχοι
-  ; ----------------------------------------------------
-
+  ; -------------------- Αριθμητικά / Έλεγχοι --------------------
   ; Επιστρέφει έναν ακέραιο v περιορισμένο στο [minV, maxV]
   static ClampInt(v, minV, maxV) {
     local x := 0
@@ -61,10 +57,7 @@ class Utils {
     }
   }
 
-  ; ----------------------------------------------------
-  ; Χρόνοι / Μορφοποιήσεις
-  ; ----------------------------------------------------
-
+  ; -------------------- Χρόνοι / Μορφοποιήσεις --------------------
   ; Μετατρέπει ms -> sec με παραμετρικό αριθμό δεκαδικών (default 1)
   static MsToSec(ms, decimals := 1) {
     local d := 1
@@ -76,14 +69,12 @@ class Utils {
     if (d < 0) {
       d := 0
     }
-
     local s := 0.0
     try {
       s := (ms + 0) / 1000.0
     } catch {
       s := 0.0
     }
-
     try {
       return Round(s, d)
     } catch {
@@ -108,7 +99,6 @@ class Utils {
     } else {
       sTxt := "" s
     }
-
     local msTxt := ""
     if (msRem < 10) {
       msTxt := "00" msRem
@@ -119,14 +109,10 @@ class Utils {
         msTxt := "" msRem
       }
     }
-
     return m "m " sTxt "s " msTxt "ms"
   }
 
-  ; ----------------------------------------------------
-  ; Γεωμετρία / Συντεταγμένες
-  ; ----------------------------------------------------
-
+  ; -------------------- Γεωμετρία / Συντεταγμένες --------------------
   ; Επιστρέφει true αν το σημείο (sx, sy) βρίσκεται εντός του ορθογωνίου (gx, gy, gw, gh).
   ; Προσοχή: θεωρεί half-open όρια [gx, gx+gw), [gy, gy+gh).
   static IsPointInRect(sx, sy, gx, gy, gw, gh) {
@@ -145,6 +131,33 @@ class Utils {
     }
     return false
   }
-}
 
+  ; -------------------- Δίκτυο / Συνδεσιμότητα --------------------
+  ; SSOT: Έλεγχος Internet (NCSI-like).
+  ; Επιστρέφει true αν ληφθεί ακριβές "Microsoft Connect Test" από msftconnecttest.com
+  ; μέσα στο timeout. Διαφορετικά false.
+  static CheckInternet(timeoutMs := 3000) {
+    url := "http://www.msftconnecttest.com/connecttest.txt"
+    ok := false
+    try {
+      whr := ComObject("WinHttp.WinHttpRequest.5.1")
+      whr.Open("GET", url, true)
+      whr.SetTimeouts(timeoutMs, timeoutMs, timeoutMs, timeoutMs)
+      whr.Send()
+      whr.WaitForResponse(timeoutMs)
+      txt := ""
+      try {
+        txt := whr.ResponseText
+      } catch {
+        txt := ""
+      }
+      if (txt = "Microsoft Connect Test") {
+        ok := true
+      }
+    } catch {
+      ok := false
+    }
+    return ok
+  }
+}
 ; ==================== End Of File ====================
