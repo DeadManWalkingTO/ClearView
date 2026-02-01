@@ -2,9 +2,9 @@
 #Requires AutoHotkey v2.0
 #Include "utils.ahk"
 #Include "versions.ahk"
+
 ; Helpers εκκίνησης UI (Internet + helpLine) και ελαφρύς έλεγχος έκδοσης.
 ; Κανόνες: AHK v2, πολυγραμμικά if, πλήρη try/catch, χωρίς &&/\.
-
 class Initializer
 {
   ; Ενημερώνει τη helpLine με βάση το Internet check.
@@ -17,14 +17,12 @@ class Initializer
     } catch {
       helpCtrl := 0
     }
-
     ok := false
     try {
       ok := Utils.CheckInternet(timeoutMs)
     } catch {
       ok := false
     }
-
     try {
       if (helpCtrl) {
         if (ok) {
@@ -35,40 +33,34 @@ class Initializer
       }
     } catch {
     }
-
     return ok
   }
 
-
-  ; === ΝΕΑ ΠΛΗΡΗΣ ΥΛΟΠΟΙΗΣΗ ===
-  ; Ελαφρύς έλεγχος έκδοσης (log only) με micro‑retry & ρητή κάλυψη local-miss.
-
-
-  static BootVersionCheck(logger, timeoutMs := 3000, wnd := 0)
+  ; ΝΕΟ: Καθαρός SSOT έλεγχος εκδόσεων με επιστροφή αποτελέσματος (ΧΩΡΙΣ UI side-effects)
+  ; Επιστρέφει object: { online: bool, localVer: "vX.Y[.Z]", remoteVer: "vX.Y[.Z]", cmp: -1|0|1, error: ""|"no_internet"|"local_missing"|"remote_missing" }
+  static CheckVersions(logger := 0, timeoutMs := 3000)
   {
-    helpCtrl := 0
+    res := { online: false, localVer: "", remoteVer: "", cmp: 0, error: "" }
+
+    okNet := false
     try {
-      if (wnd) {
-        helpCtrl := wnd.GetControl("helpLine")
-      }
+      okNet := Utils.CheckInternet(timeoutMs)
     } catch {
-      helpCtrl := 0
+      okNet := false
     }
+    res.online := okNet
 
-    ; 1) Internet check (NCSI) μέσω SSOT
-    if (!Utils.CheckInternet())
-    {
-
+    if (!okNet) {
       try {
         if (logger) {
           logger.Write("⚠️ Χωρίς σύνδεση Internet. Παράλειψη ελέγχου έκδοσης.")
         }
       } catch {
       }
-      return
+      res.error := "no_internet"
+      return res
     }
 
-    ; 2) Εκδόσεις μέσω Versions (SSOT)
     settingsPath := Versions.GetLocalSettingsPath()
     if (logger)
     {
@@ -86,35 +78,84 @@ class Initializer
     localVer := Versions.TryReadLocalAppVersion(settingsPath, logger)
     if (localVer = "")
     {
-      ; ΠΡΙΝ: MsgBox("Αδυναμία ανάγνωσης τοπικής έκδοσης.", "Σφάλμα", "Iconx")
       try {
         if (logger) {
           logger.Write("⛔ Αδυναμία ανάγνωσης τοπικής έκδοσης.")
         }
       } catch {
       }
-      return
+      res.error := "local_missing"
+      return res
     }
+    res.localVer := localVer
 
     remoteUrl := "https://raw.githubusercontent.com/DeadManWalkingTO/ClearView/main/lib/settings.ahk"
     remoteVer := Versions.TryGetRemoteAppVersion(remoteUrl, 4000, logger)
     if (remoteVer = "")
     {
-      ; ΠΡΙΝ: MsgBox("Αδυναμία ανάγνωσης απομακρυσμένης έκδοσης.", "Σφάλμα", "Iconx")
       try {
         if (logger) {
           logger.Write("⛔ Αδυναμία ανάγνωσης απομακρυσμένης έκδοσης.")
         }
       } catch {
       }
+      res.error := "remote_missing"
+      return res
+    }
+    res.remoteVer := remoteVer
+
+    cmp := Versions.CompareSemVer(localVer, remoteVer)
+    res.cmp := cmp
+    return res
+  }
+
+  ; Ελαφρύς έλεγχος έκδοσης (UI side-effects): γράφει σε helper+logs με βάση το αποτέλεσμα του CheckVersions(...)
+  static BootVersionCheck(logger, timeoutMs := 3000, wnd := 0)
+  {
+    helpCtrl := 0
+    try {
+      if (wnd) {
+        helpCtrl := wnd.GetControl("helpLine")
+      }
+    } catch {
+      helpCtrl := 0
+    }
+
+    info := Initializer.CheckVersions(logger, timeoutMs)
+
+    ; Internet off
+    if (!info.online)
+    {
+      try {
+        if (helpCtrl) {
+          helpCtrl.Text := "⚠️ Χωρίς σύνδεση Internet."
+        }
+      } catch {
+      }
       return
     }
 
-    ; 3) Σύγκριση SemVer
-    cmp := Versions.CompareSemVer(localVer, remoteVer)
-    if (cmp = 0)
+    ; Σφάλματα ανάγνωσης
+    if (info.error != "")
     {
-      ; local = remote → τελευταία έκδοση.
+      try {
+        if (helpCtrl) {
+          if (info.error = "local_missing") {
+            helpCtrl.Text := "⛔ Αδυναμία ανάγνωσης τοπικής έκδοσης."
+          } else if (info.error = "remote_missing") {
+            helpCtrl.Text := "⛔ Αδυναμία ανάγνωσης απομακρυσμένης έκδοσης."
+          } else {
+            helpCtrl.Text := "⛔ Άγνωστο σφάλμα ελέγχου έκδοσης."
+          }
+        }
+      } catch {
+      }
+      return
+    }
+
+    ; Κανονικές καταστάσεις
+    if (info.cmp = 0)
+    {
       try {
         if (logger) {
           logger.Write("✅ Η έκδοση της εφαρμογής είναι η τελευταία.")
@@ -127,36 +168,30 @@ class Initializer
       return
     }
 
-    if (cmp = 1)
+    if (info.cmp = 1)
     {
-      ; local > remote → πιθανό dev build. Δεν κάνουμε downgrade.
       try {
         if (logger) {
           logger.Write("ℹ️ Η έκδοση της εφαρμογής είναι νεότερη.")
         }
-
         if (helpCtrl) {
           helpCtrl.Text := "ℹ️ Η έκδοση της εφαρμογής είναι νεότερη."
         }
-
       } catch {
       }
       return
     }
 
-    ; remote > local (cmp = -1)
-    if (logger)
-    {
-      try {
-        logger.Write("⬇️ Διαθέσιμη νεότερη έκδοση: local=" localVer " → remote=" remoteVer)
-      } catch {
+    ; cmp = -1 → remote newer
+    try {
+      if (logger) {
+        logger.Write("⬇️ Διαθέσιμη νεότερη έκδοση: local=" info.localVer " → remote=" info.remoteVer)
       }
       if (helpCtrl) {
-        helpCtrl.Text := " ⬇️ Διαθέσιμη νεότερη έκδοση: local = " localVer " → remote = " remoteVer
+        helpCtrl.Text := "⬇️ Διαθέσιμη νεότερη έκδοση (" info.localVer " → " info.remoteVer ")."
       }
+    } catch {
     }
   }
 }
-
-
 ; ==================== End Of File ====================

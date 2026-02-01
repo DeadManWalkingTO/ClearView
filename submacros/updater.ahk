@@ -4,22 +4,24 @@
 #Include "..\lib\regex.ahk"
 #Include "..\lib\utils.ahk"
 #Include "..\lib\versions.ahk"
+#Include "..\lib\initialize.ahk"  ; ⬅️ ΝΕΟ: χρησιμοποιούμε το SSOT για versions
 
-; Updater
-; - Έλεγχος Internet (NCSI-like) μέσω Utils.CheckInternet (SSOT)
-; - Ανάγνωση έκδοσης τοπικά (..\lib\settings.ahk) & απομακρυσμένα (raw GitHub)
-; - Σύγκριση SemVer (vX.Y[.Z])
-; - Skip όταν ίσες/τοπική νεότερη, Proceed μόνο όταν remote νεότερη
-; - Λήψη ZIP (main.zip) και κλήση submacros\update.bat με args:
-;   1) πλήρης διαδρομή ZIP, 2) πλήρης ρίζα εφαρμογής (γονικός του submacros)
-; Κανόνες: AHK v2, πολυγραμμικά if, πλήρη try/catch, χωρίς &&/||.
+; Updater (Adapter):
+; - Κάνει *έλεγχο/σύγκριση* εκδόσεων μέσω Initializer.CheckVersions(logger, timeoutMs)
+; - Προχωρά σε update (λήψη main.zip + κλήση update.bat) ΜΟΝΟ όταν remote > local (cmp = -1)
+; - Διατηρεί ίδιο API: Updater.RunUpdateFlow(logger), ώστε το setup.ahk να μην αλλάξει.
+; - Κανόνες: AHK v2, πολυγραμμικά if, πλήρη try/catch, χωρίς &&/\\.
+
 class Updater
 {
-  ; ---------------- Public API ----------------
   static RunUpdateFlow(logger := 0)
   {
-    ; 1) Internet check (NCSI) μέσω SSOT
-    if (!Utils.CheckInternet()) {
+    ; 1) Έλεγχος/σύγκριση μέσω Initializer.CheckVersions (SSOT)
+    info := Initializer.CheckVersions(logger, 3000)
+
+    ; Internet off
+    if (!info.online)
+    {
       try {
         MsgBox("Δεν υπάρχει σύνδεση στο Internet. Παρακαλώ δοκιμάστε ξανά.", "Έλεγχος σύνδεσης", "Iconi")
       } catch {
@@ -27,45 +29,24 @@ class Updater
       return
     }
 
-    ; 2) Εκδόσεις μέσω Versions (SSOT)
-    settingsPath := Versions.GetLocalSettingsPath()
-    if (logger)
+    ; Σφάλμα ανάγνωσης
+    if (info.error != "")
     {
       try {
-        logger.Write("🔎 settings.ahk (local): " settingsPath)
-        if FileExist(settingsPath) {
-          logger.Write("✅ settings.ahk υπάρχει στο δίσκο.")
+        if (info.error = "local_missing") {
+          MsgBox("Αδυναμία ανάγνωσης τοπικής έκδοσης.", "Σφάλμα", "Iconx")
+        } else if (info.error = "remote_missing") {
+          MsgBox("Αδυναμία ανάγνωσης απομακρυσμένης έκδοσης.", "Σφάλμα", "Iconx")
         } else {
-          logger.Write("❌ settings.ahk ΔΕΝ βρέθηκε στο δίσκο.")
+          MsgBox("Σφάλμα ελέγχου έκδοσης.", "Σφάλμα", "Iconx")
         }
       } catch {
       }
-    }
-
-    localVer := Versions.TryReadLocalAppVersion(settingsPath, logger)
-    if (localVer = "")
-    {
-      try {
-        MsgBox("Αδυναμία ανάγνωσης τοπικής έκδοσης.", "Σφάλμα", "Iconx")
-      } catch {
-      }
       return
     }
 
-    remoteUrl := "https://raw.githubusercontent.com/DeadManWalkingTO/ClearView/main/lib/settings.ahk"
-    remoteVer := Versions.TryGetRemoteAppVersion(remoteUrl, 4000, logger)
-    if (remoteVer = "")
-    {
-      try {
-        MsgBox("Αδυναμία ανάγνωσης απομακρυσμένης έκδοσης.", "Σφάλμα", "Iconx")
-      } catch {
-      }
-      return
-    }
-
-    ; 3) Σύγκριση SemVer
-    cmp := Versions.CompareSemVer(localVer, remoteVer)
-    if (cmp = 0)
+    ; cmp: 0 → τελευταία
+    if (info.cmp = 0)
     {
       try {
         MsgBox("Η έκδοση της εφαρμογής είναι η τελευταία και δεν χρειάζεται αναβάθμιση.", "Εγκατάσταση νέας έκδοσης", "Iconi")
@@ -73,9 +54,10 @@ class Updater
       }
       return
     }
-    if (cmp = 1)
+
+    ; cmp: 1 → τοπική νεότερη (dev build)
+    if (info.cmp = 1)
     {
-      ; local > remote → πιθανό dev build. Δεν κάνουμε downgrade.
       try {
         MsgBox("Τρέχεις νεότερη έκδοση από την απομακρυσμένη. Η αναβάθμιση παραλείπεται.", "Εγκατάσταση νέας έκδοσης", "Iconi")
       } catch {
@@ -83,17 +65,18 @@ class Updater
       return
     }
 
-    ; 4) Proceed ONLY if remote > local (cmp = -1)
+    ; cmp: -1 → Proceed: remote > local
     if (logger)
     {
       try {
-        logger.Write("⬇️ Διαθέσιμη νεότερη έκδοση: local=" localVer " → remote=" remoteVer)
+        logger.Write("⬇️ Διαθέσιμη νεότερη έκδοση: local=" info.localVer " → remote=" info.remoteVer)
       } catch {
       }
     }
 
     zipUrl := "https://github.com/DeadManWalkingTO/ClearView/archive/refs/heads/main.zip"
     tmpZip := Updater._composeTempZipPath()
+
     try {
       if FileExist(tmpZip) {
         FileDelete(tmpZip)
@@ -101,7 +84,7 @@ class Updater
     } catch {
     }
 
-    ; Λήψη ZIP (AHK v2: throws on error)
+    ; 2) Λήψη ZIP
     try {
       Download(zipUrl, tmpZip)
       if (logger) {
@@ -115,12 +98,10 @@ class Updater
       return
     }
 
-    ; 5) Κλήση update.bat με:
-    ; arg1 = zipPath, arg2 = appRoot (γονικός φάκελος του submacros)
+    ; 3) Εκτέλεση update.bat (ίδια λογική με πριν)
     batPath := A_ScriptDir "\update.bat"
     appRoot := Versions.GetAppRoot()
 
-    ; Quoting με RegexLib για paths με κενά
     qBat := ""
     qZip := ""
     qRoot := ""
@@ -143,12 +124,11 @@ class Updater
     } catch {
     }
 
-    ; 6) Κλείσιμο εφαρμογής για να επιτραπεί η αντικατάσταση
+    ; 4) Κλείσιμο app για αντικατάσταση
     ExitApp
   }
 
-  ; ---------------- Internals ----------------
-  ; Παραμένει εδώ (όχι "version logic"): προσωρινό όνομα zip.
+  ; --- Internals ---
   static _composeTempZipPath()
   {
     ts := ""
