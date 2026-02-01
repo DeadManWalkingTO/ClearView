@@ -32,8 +32,29 @@ class Updater
       return
     }
 
-    ; 2) Εκδόσεις
-    localVer := Updater._readLocalVersion("..\lib\settings.ahk")
+    ; 2) Εκδόσεις: υπολόγισε απόλυτο path του settings.ahk από το app root
+    local settingsPath := Updater._getLocalSettingsPath()
+
+    if (logger)
+    {
+      try
+      {
+        logger.Write("🔎 settings.ahk (local): " settingsPath)
+        if FileExist(settingsPath)
+        {
+          logger.Write("✅ settings.ahk υπάρχει στο δίσκο.")
+        }
+        else
+        {
+          logger.Write("❌ settings.ahk ΔΕΝ βρέθηκε στο δίσκο.")
+        }
+      }
+      catch
+      {
+      }
+    }
+
+    localVer := Updater._readLocalVersion(settingsPath, logger)
     if (localVer = "")
     {
       try
@@ -47,7 +68,7 @@ class Updater
     }
 
     remoteUrl := "https://raw.githubusercontent.com/DeadManWalkingTO/ClearView/main/lib/settings.ahk"
-    remoteVer := Updater._readRemoteVersion(remoteUrl)
+    remoteVer := Updater._readRemoteVersion(remoteUrl, logger)
     if (remoteVer = "")
     {
       try
@@ -102,24 +123,24 @@ class Updater
       }
     }
 
-    ; 5) Λήψη ZIP
     zipUrl := "https://github.com/DeadManWalkingTO/ClearView/archive/refs/heads/main.zip"
-    zipPath := Updater._composeTempZipPath()
+    tmpZip := Updater._composeTempZipPath()
 
     try
     {
-      if FileExist(zipPath)
+      if FileExist(tmpZip)
       {
-        FileDelete(zipPath)
+        FileDelete(tmpZip)
       }
     }
     catch
     {
     }
 
+    ; Download ZIP (AHK v2: throws on error)
     try
     {
-      Download(zipUrl, zipPath)  ; AHK v2: ρίχνει εξαίρεση σε αποτυχία
+      Download(zipUrl, tmpZip)
       if (logger)
       {
         logger.Write("⬇️ Λήψη πακέτου αναβάθμισης: " zipUrl)
@@ -137,9 +158,9 @@ class Updater
       return
     }
 
-    ; 6) Κλήση update.bat με:
+    ; 5) Κλήση update.bat με:
     ;    arg1 = zipPath, arg2 = appRoot (γονικός φάκελος του submacros)
-    batPath := A_ScriptDir "\update.bat"   ; ⬅️ ΕΔΩ: submacros\update.bat (ίδιος φάκελος με updater.ahk)
+    batPath := A_ScriptDir "\update.bat"
     appRoot := Updater._getAppRoot()
 
     ; Quoting με RegexLib για paths με κενά
@@ -149,13 +170,13 @@ class Updater
     try
     {
       qBat := RegexLib.Str.Quote(batPath)
-      qZip := RegexLib.Str.Quote(zipPath)
+      qZip := RegexLib.Str.Quote(tmpZip)
       qRoot := RegexLib.Str.Quote(appRoot)
     }
     catch
     {
       qBat := '"' batPath '"'
-      qZip := '"' zipPath '"'
+      qZip := '"' tmpZip '"'
       qRoot := '"' appRoot '"'
     }
 
@@ -173,7 +194,7 @@ class Updater
     {
     }
 
-    ; 7) Κλείσιμο εφαρμογής για να επιτραπεί η αντικατάσταση
+    ; 6) Κλείσιμο εφαρμογής για να επιτραπεί η αντικατάσταση
     ExitApp
   }
 
@@ -213,30 +234,89 @@ class Updater
     return ok
   }
 
-  static _readLocalVersion(settingsPath)
+  static _readLocalVersion(settingsPath, logger := 0)
   {
     ver := ""
     try
     {
-      txt := FileRead(settingsPath, "UTF-8")
-      ver := Updater._extractAppVersion(txt)
+      ; Προαιρετικό logging πριν το διάβασμα
+      if (logger)
+      {
+        try
+        {
+          logger.Write("📄 Διαβάζω τοπική έκδοση από: " settingsPath)
+        }
+        catch
+        {
+        }
+      }
+
+      txt := ""
+      try
+      {
+        txt := FileRead(settingsPath, "UTF-8")
+      }
+      catch Error as eRead
+      {
+        txt := ""
+        if (logger)
+        {
+          try
+          {
+            logger.SafeErrorLog("⚠️ Αποτυχία FileRead(settings.ahk).", eRead)
+          }
+          catch
+          {
+          }
+        }
+      }
+
+      if (txt != "")
+      {
+        ver := Updater._extractAppVersion(txt, logger)
+      }
     }
     catch
     {
       ver := ""
     }
+
+    if (ver = "")
+    {
+      if (logger)
+      {
+        try
+        {
+          logger.Write("⚠️ Δεν εξήχθη APP_VERSION από το settings.ahk.")
+        }
+        catch
+        {
+        }
+      }
+    }
     return ver
   }
 
-  static _readRemoteVersion(rawUrl)
+  static _readRemoteVersion(rawUrl, logger := 0)
   {
     ver := ""
     tmp := A_Temp "\cv_remote_settings.ahk"
     try
     {
+      if (logger)
+      {
+        try
+        {
+          logger.Write("🌐 Ανάκτηση απομακρυσμένης έκδοσης από: " rawUrl)
+        }
+        catch
+        {
+        }
+      }
+
       Download(rawUrl, tmp)
       txt := FileRead(tmp, "UTF-8")
-      ver := Updater._extractAppVersion(txt)
+      ver := Updater._extractAppVersion(txt, logger)
     }
     catch
     {
@@ -255,33 +335,114 @@ class Updater
     return ver
   }
 
-  static _extractAppVersion(text)
+  static _extractAppVersion(text, logger := 0)
   {
-    ; Εξαγωγή του APP_VERSION με βοήθεια RegexLib.Chars για ανθεκτικό pattern:
-    ; Δέχεται π.χ.  static APP_VERSION := "v6.22.20"  ή με '…'
+    ; Εξαγωγή APP_VERSION με 4 βήματα:
+    ; (1) Strict: static APP_VERSION := "<vX.Y.Z>" με ίδιο quote αριστερά/δεξιά (backref).
+    ; (2) Fallback: APP_VERSION := ["']?<vX.Y.Z>["']? (χωρίς απαίτηση ίδιου quote).
+    ; (3) Σάρωση γραμμής APP_VERSION: εντοπίζουμε τη γραμμή, κόβουμε τυχόν σχόλιο ';',
+    ;     και εξάγουμε το πρώτο vX.Y[.Z].
+    ; (4) Last resort: οπουδήποτε στο αρχείο το πρώτο vX.Y[.Z].
+
     c := RegexLib.Chars
 
-    quoteClass := c.RAW_LBRKT . c.BS . c.DQ . RegexLib.Chars.SQT . c.RAW_RBRKT
+    ; ------ (1) STRICT
+    quoteClass := c.RAW_LBRKT . c.BS . c.DQ . RegexLib.Chars.SQT . c.RAW_RBRKT ; ["']
     versionCore := "v" . c.DIGIT . c.PLUS
-    versionCore .= c.LPAREN . c.BS . c.DOT . c.DIGIT . c.PLUS . c.RPAREN . c.LBRACE . "0,2" . c.RBRACE
+    versionCore .= c.LPAREN . c.BS . c.DOT . c.DIGIT . c.PLUS . c.RPAREN . c.LBRACE . "0,2" . c.RBRACE ; (\.\d+){0,2}
 
-    grpQuote := c.LPAREN . quoteClass . c.RPAREN
-    grpVer := c.LPAREN . versionCore . c.RPAREN
-    backRef1 := c.BS . "1"
+    grpQuote := c.LPAREN . quoteClass . c.RPAREN      ; (["'])
+    grpVer := c.LPAREN . versionCore . c.RPAREN     ; (vX[.Y[.Z]])
+    backRef1 := c.BS . "1"                            ; \1
 
-    pat := "m)static" . c.WS . c.PLUS . "APP_VERSION" . c.WS . c.STAR . c.COLON . c.EQUAL . c.WS . c.STAR
-    pat .= grpQuote . grpVer . backRef1
+    pat1 := "m)static" . c.WS . c.PLUS . "APP_VERSION" . c.WS . c.STAR . c.COLON . c.EQUAL . c.WS . c.STAR
+    pat1 .= grpQuote . grpVer . backRef1              ;   (["'])(v...)\1
 
     try
     {
-      if RegExMatch(text, pat, &m)
+      if RegExMatch(text, pat1, &m1)
       {
-        return m[2]  ; vX.Y.Z
+        return m1[2]
       }
     }
     catch
     {
+      ; ignore
     }
+
+    ; ------ (2) FALLBACK: Χωρίς απαίτηση ίδιου quote
+    grpQuoteOpt := quoteClass . c.QMARK               ; (["'])?
+    pat2 := "m)APP_VERSION" . c.WS . c.STAR . c.COLON . c.EQUAL . c.WS . c.STAR
+    pat2 .= c.LPAREN . grpQuoteOpt . c.RPAREN         ; capture 1: (["'])?
+    pat2 .= grpVer                                    ; capture 2: (v...)
+    pat2 .= c.LPAREN . grpQuoteOpt . c.RPAREN         ; capture 3: (["'])?
+
+    try
+    {
+      if RegExMatch(text, pat2, &m2)
+      {
+        return m2[2]
+      }
+    }
+    catch
+    {
+      ; ignore
+    }
+
+    ; ------ (3) ΣΑΡΩΣΗ ΓΡΑΜΜΗΣ APP_VERSION (ανθεκτικό σε σχόλια, spacing, tabs)
+    try
+    {
+      ; Πιάσε *ολόκληρη τη γραμμή* που περιέχει APP_VERSION (πρώτη εμφάνιση)
+      if RegExMatch(text, "m)^.*APP_VERSION.*$", &mLine)
+      {
+        line := mLine[0]
+        ; κόψε CR
+        line := StrReplace(line, "`r")
+        ; κόψε σχόλιο AHK (;) — κράτα ό,τι είναι πριν από ';'
+        parts := StrSplit(line, ";")
+        core := Trim(parts.Length >= 1 ? parts[1] : line)
+        ; log τη γραμμή για διάγνωση
+        if (logger)
+        {
+          try
+          {
+            shown := core
+            if (StrLen(shown) > 200)
+            {
+              shown := SubStr(shown, 1, 200) "…"
+            }
+            logger.Write("🔬 APP_VERSION line: " shown)
+          }
+          catch
+          {
+          }
+        }
+        ; Εξήγαγε το πρώτο vX.Y[.Z] στη γραμμή
+        if RegExMatch(core, "m)v\d+(?:\.\d+){1,2}", &mV)
+        {
+          return mV[0]
+        }
+      }
+    }
+    catch
+    {
+      ; ignore
+    }
+
+    ; ------ (4) LAST RESORT: Πάρε το πρώτο vX.Y[.Z] που θα βρεις οπουδήποτε
+    pat3 := "m)v\d+(?:\.\d+){1,2}"
+    try
+    {
+      if RegExMatch(text, pat3, &m3)
+      {
+        return m3[0]
+      }
+    }
+    catch
+    {
+      ; ignore
+    }
+
     return ""
   }
 
@@ -376,6 +537,20 @@ class Updater
     catch
     {
       p := A_ScriptDir "\.."
+    }
+    return p
+  }
+
+  static _getLocalSettingsPath()
+  {
+    p := ""
+    try
+    {
+      p := Updater._getAppRoot() "\lib\settings.ahk"
+    }
+    catch
+    {
+      p := ".\lib\settings.ahk" ; έσχατο fallback
     }
     return p
   }
