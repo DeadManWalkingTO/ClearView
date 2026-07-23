@@ -4,11 +4,11 @@
 #Include "..\core\system\utils.ahk"  ; ← χρήση Utils.TryParseInt για καθάρισμα SetGuiRect
 #Include "..\core\system\regex.ahk"
 #Include "..\core\edge\edge.ahk"
-#Include "..\core\edge\edge_profile.ahk" ; ⬅️ Χρησιμοποιούμε StartEdgeWithAppProfile / Ex
+#Include "..\core\automation\mouse.ahk"  
 
 #Include "settings.ahk"
+#Include "edge_profile.ahk" ; ⬅️ Χρησιμοποιούμε StartEdgeWithAppProfile / Ex
 #Include "video.ahk"
-#Include "moves.ahk"
 #Include "lists.ahk"
 #Include "videopicker.ahk"
 #Include "flow_loop.ahk"     
