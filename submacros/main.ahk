@@ -36,7 +36,16 @@ try
   txtLogCtrl := wnd.GetControl("txtLog")
   txtHeadCtrl := wnd.GetControl("txtHead")
   logInst := Logger(txtLogCtrl, txtHeadCtrl)
-  edgeSvc := EdgeService(Settings.EDGE_EXE, Settings.EDGE_WIN_SEL)
+
+
+  edgeSvc := EdgeService(
+    Settings.EDGE_EXE,
+    Settings.EDGE_WIN_SEL,
+    Settings.SMALL_DELAY_MS,
+    Settings.PROFILE_DIR_FORCE
+  )
+
+
   videoSvc := VideoService()
   flowCtl := FlowController(logInst, edgeSvc, videoSvc, Settings)
   ; ⬇️ ΝΕΟ: Δίνουμε το UiWindow στο flow — και το flow εκτελεί initialization εσωτερικά
