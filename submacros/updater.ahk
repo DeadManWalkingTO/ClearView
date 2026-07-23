@@ -77,12 +77,12 @@ class Updater
       }
     }
 
-    zipUrl :=
-      "https://github.com/"
-    Settings.GITHUB_OWNER "/"
-    Settings.GITHUB_REPO
-    "/archive/refs/heads/"
-    Settings.UPDATE_ZIP_NAME
+    zipUrl := "https://github.com/"
+      . Settings.GITHUB_OWNER
+      . "/"
+      . Settings.GITHUB_REPO
+      . "/archive/refs/heads/"
+      . Settings.UPDATE_ZIP_NAME
 
     tmpZip := Updater._composeTempZipPath()
 
