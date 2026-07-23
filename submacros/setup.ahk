@@ -4,7 +4,7 @@
 #Include "..\core\system\regex.ahk"
 #Include "..\lib\settings.ahk"
 #Include "..\core\edge\edge.ahk"
-#Include "..\core\edge\edge_profile.ahk"  ; SSOT: StartEdgeWithAppProfile(url, newWindow := true, logger := 0)
+#Include "..\lib\edge_profile.ahk"  ; SSOT: StartEdgeWithAppProfile(url, newWindow := true, logger := 0)
 
 #Include ".\updater.ahk" ; ⬅️ ΝΕΟ: Updater με Skip/Proceed πολιτική
 
