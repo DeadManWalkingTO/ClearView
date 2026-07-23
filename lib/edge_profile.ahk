@@ -1,10 +1,10 @@
 ; ==================== lib/edge_profile.ahk ====================
 #Requires AutoHotkey v2.0
 
-#Include "../core/system/regex.ahk"
-#Include "../core/edge/edge.ahk" ; Χρειαζόμαστε EdgeService για resolve & άνοιγμα παραθύρου
+#Include "..\core\system\regex.ahk"
+#Include "..\core\edge\edge.ahk" ; Χρειαζόμαστε EdgeService για resolve & άνοιγμα παραθύρου
 
-#Include "../lib/settings.ahk"
+#Include "..\lib\settings.ahk"
 
 
 ; ------------------------------- ΙΔΙΩΤΙΚΑ ΒΟΗΘΗΤΙΚΑ (DRY) -------------------------------
