@@ -4,10 +4,11 @@
 #Include "../system/regex.ahk"
 
 class EdgeService {
-  __New(edgeExe, winSelector := "ahk_exe msedge.exe") {
+  __New(edgeExe, winSelector := "ahk_exe msedge.exe", smallDelayMs := 1500) {
     this.exe := edgeExe
     this.sel := winSelector
-  }
+    this.smallDelayMs := smallDelayMs
+}
 
   ; ---------- Profile resolve ----------
   ResolveProfileDirByName(displayName) {
@@ -158,8 +159,9 @@ class EdgeService {
 
   _dirExist(path) => InStr(FileExist(path), "D") > 0
 
-  StepDelay() {
-    Sleep(Settings.SMALL_DELAY_MS)
-  }
+StepDelay() {
+    Sleep(this.smallDelayMs)
+}
+
 }
 ; ==================== End Of File ====================
