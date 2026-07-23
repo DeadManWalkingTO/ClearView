@@ -3,7 +3,7 @@
 #Include "..\core\system\utils.ahk"
 #Include "..\core\system\regex.ahk"
 #Include "..\lib\settings.ahk"
-#Include "..\lib\versions.ahk"
+#Include "..\core\system\versions.ahk"
 #Include "..\lib\initialize.ahk"  ; ⬅️ ΝΕΟ: χρησιμοποιούμε το SSOT για versions
 
 ; Updater (Adapter):
