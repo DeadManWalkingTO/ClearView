@@ -1,1 +1,0 @@
-Latest Stable Version: 2.0.26

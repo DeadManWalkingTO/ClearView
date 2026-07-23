@@ -1,2 +1,0 @@
-# CoreAHK
-CoreAHK by DeadManWalkingTO
