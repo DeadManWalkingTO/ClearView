@@ -7,20 +7,21 @@ SetWorkingDir(A_ScriptDir)
 ; --- Includes ---
 #Include "..\core\system\utils.ahk"     ; SSOT: CheckInternet
 #Include "..\core\system\regex.ahk"
+#Include "..\core\system\versions.ahk"  ; ⬅️ ΝΕΟ: SSOT για versions (ανάγνωση/σύγκριση)
 #Include "..\core\edge\edge.ahk"
+#Include "..\core\automation\mouse.ahk"
 
-#Include ..\lib\settings.ahk
-#Include ..\lib\video.ahk
-#Include ..\lib\moves.ahk
-#Include ..\lib\lists.ahk
-#Include ..\lib\videopicker.ahk
-#Include ..\lib\flow_loop.ahk ; ← ΠΡΕΠΕΙ να προηγείται του flow.ahk
-#Include ..\lib\flow.ahk     ; ← χρησιμοποιεί FlowLoop
-#Include ..\lib\log.ahk
-#Include ..\lib\ui_window.ahk
-#Include ..\lib\ui_controller.ahk
+#Include "..\lib\settings.ahk"
+#Include "..\lib\video.ahk"
+#Include "..\lib\lists.ahk"
+#Include "..\lib\videopicker.ahk"
+#Include "..\lib\flow_loop.ahk" ; ← ΠΡΕΠΕΙ να προηγείται του flow.ahk
+#Include "..\lib\flow.ahk"     ; ← χρησιμοποιεί FlowLoop
+#Include "..\lib\log.ahk"
+#Include "..\lib\ui_window.ahk"
+#Include "..\lib\ui_controller.ahk"
 
-#Include ..\lib\versions.ahk  ; ⬅️ ΝΕΟ: SSOT για versions (ανάγνωση/σύγκριση)
+
 #Include .\setup.ahk          ; ← SetupController (κουμπιά «Εγκατάσταση»)
 
 ; --- Bootstrap ---
