@@ -33,8 +33,11 @@ class Settings {
     static GITHUB_REPO := "ClearView"
     static GITHUB_BRANCH := "main"
 
+    static VERSION_FILE_PATH := "lib/settings.ahk"
+
     static VERSION_CHECK_TIMEOUT_MS := 4000
     static INTERNET_CHECK_TIMEOUT_MS := 3000
+
 
     static UPDATE_ZIP_NAME := "main.zip"
 
