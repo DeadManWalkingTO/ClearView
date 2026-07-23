@@ -37,14 +37,12 @@ try
   txtHeadCtrl := wnd.GetControl("txtHead")
   logInst := Logger(txtLogCtrl, txtHeadCtrl)
 
-
   edgeSvc := EdgeService(
     Settings.EDGE_EXE,
     Settings.EDGE_WIN_SEL,
     Settings.SMALL_DELAY_MS,
     Settings.PROFILE_DIR_FORCE
   )
-
 
   videoSvc := VideoService()
   flowCtl := FlowController(logInst, edgeSvc, videoSvc, Settings)
