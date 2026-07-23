@@ -117,18 +117,20 @@ class Initializer
     }
     res.localVer := localVer
 
- remoteUrl :=
-    "https://raw.githubusercontent.com/"
-    Settings.GITHUB_OWNER "/"
-    Settings.GITHUB_REPO "/"
-    Settings.GITHUB_BRANCH "/"
-    Settings.VERSION_FILE_PATH
+    remoteUrl := "https://raw.githubusercontent.com/"
+      . Settings.GITHUB_OWNER
+      . "/"
+      . Settings.GITHUB_REPO
+      . "/refs/heads/"
+      . Settings.GITHUB_BRANCH
+      . "/"
+      . Settings.VERSION_FILE_PATH
 
     remoteVer := Versions.TryGetRemoteAppVersion(
-    remoteUrl,
-    Settings.VERSION_CHECK_TIMEOUT_MS,
-    logger
-)
+      remoteUrl,
+      Settings.VERSION_CHECK_TIMEOUT_MS,
+      logger
+    )
 
     if (remoteVer = "")
     {
