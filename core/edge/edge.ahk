@@ -1,6 +1,5 @@
 ; ==================== lib/edge.ahk ====================
 #Requires AutoHotkey v2.0
-#Include "../../lib/settings.ahk"
 #Include "../system/regex.ahk"
 
 class EdgeService {
