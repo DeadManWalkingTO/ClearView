@@ -1,7 +1,7 @@
 ; ==================== lib/edge.ahk ====================
 #Requires AutoHotkey v2.0
+#Include "..\core\system\regex.ahk"
 #Include "settings.ahk"
-#Include "regex.ahk"
 
 class EdgeService {
   __New(edgeExe, winSelector := "ahk_exe msedge.exe") {

@@ -1,7 +1,7 @@
 ﻿; ==================== submacros/setup.ahk ====================
 #Requires AutoHotkey v2.0
+#Include "..\core\system\regex.ahk"
 #Include "..\lib\settings.ahk"
-#Include "..\lib\regex.ahk"
 #Include "..\lib\edge.ahk"
 #Include "..\lib\edge_profile.ahk" ; SSOT: StartEdgeWithAppProfile(url, newWindow := true, logger := 0)
 #Include ".\updater.ahk" ; ⬅️ ΝΕΟ: Updater με Skip/Proceed πολιτική

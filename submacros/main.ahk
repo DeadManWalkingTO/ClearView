@@ -5,8 +5,9 @@ SetTitleMatchMode(2)
 SetWorkingDir(A_ScriptDir)
 
 ; --- Includes ---
+#Include "..\core\system\utils.ahk"     ; SSOT: CheckInternet
+#Include "..\core\system\regex.ahk"
 #Include ..\lib\settings.ahk
-#Include ..\lib\regex.ahk
 #Include ..\lib\edge.ahk
 #Include ..\lib\video.ahk
 #Include ..\lib\moves.ahk
@@ -17,7 +18,7 @@ SetWorkingDir(A_ScriptDir)
 #Include ..\lib\log.ahk
 #Include ..\lib\ui_window.ahk
 #Include ..\lib\ui_controller.ahk
-#Include ..\lib\utils.ahk     ; SSOT: CheckInternet
+
 #Include ..\lib\versions.ahk  ; ⬅️ ΝΕΟ: SSOT για versions (ανάγνωση/σύγκριση)
 #Include .\setup.ahk          ; ← SetupController (κουμπιά «Εγκατάσταση»)
 

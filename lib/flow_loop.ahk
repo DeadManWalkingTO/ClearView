@@ -1,9 +1,9 @@
 ; ==================== lib/flow_loop.ahk ====================
 #Requires AutoHotkey v2.0
+#Include "..\core\system\utils.ahk"     ; ← Utils.FormatDurationMs(), Utils.MsToSec(), Utils.RandomInt()
 #Include "settings.ahk"
 #Include "videopicker.ahk"
 #Include "moves.ahk"       ; ← ClickCenter(), MoveMouseRandom4()
-#Include "utils.ahk"       ; ← Utils.FormatDurationMs(), Utils.MsToSec(), Utils.RandomInt()
 
 ; FlowLoop:
 ; - Τρέχει τον συνεχόμενο κύκλο: Pick -> Navigate -> Ensure -> Wait.

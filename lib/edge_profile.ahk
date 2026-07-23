@@ -1,7 +1,7 @@
 ; ==================== lib/edge_profile.ahk ====================
 #Requires AutoHotkey v2.0
+#Include "..\core\system\regex.ahk"
 #Include "settings.ahk"
-#Include "regex.ahk"
 #Include "edge.ahk" ; Χρειαζόμαστε EdgeService για resolve & άνοιγμα παραθύρου
 
 ; ------------------------------- ΙΔΙΩΤΙΚΑ ΒΟΗΘΗΤΙΚΑ (DRY) -------------------------------

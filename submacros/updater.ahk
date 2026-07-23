@@ -1,8 +1,8 @@
 ﻿; ==================== submacros/updater.ahk ====================
 #Requires AutoHotkey v2.0
+#Include "..\core\system\utils.ahk"
+#Include "..\core\system\regex.ahk"
 #Include "..\lib\settings.ahk"
-#Include "..\lib\regex.ahk"
-#Include "..\lib\utils.ahk"
 #Include "..\lib\versions.ahk"
 #Include "..\lib\initialize.ahk"  ; ⬅️ ΝΕΟ: χρησιμοποιούμε το SSOT για versions
 

@@ -1,6 +1,6 @@
 ; ==================== lib/versions.ahk ====================
 #Requires AutoHotkey v2.0
-#Include "regex.ahk"
+#Include "..\core\system\regex.ahk"
 
 ; Στόχος: SSOT για έλεγχο εκδόσεων.
 ; Κανόνες: AHK v2, πολυγραμμικά if, πλήρη try/catch, χωρίς &&/||.

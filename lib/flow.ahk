@@ -1,15 +1,15 @@
 ; ==================== lib/flow.ahk ====================
 #Requires AutoHotkey v2.0
+#Include "..\core\system\utils.ahk"  ; ← χρήση Utils.TryParseInt για καθάρισμα SetGuiRect
+#Include "..\core\system\regex.ahk"
 #Include "settings.ahk"
-#Include "regex.ahk"
 #Include "edge.ahk"
 #Include "edge_profile.ahk" ; ⬅️ Χρησιμοποιούμε StartEdgeWithAppProfile / Ex
 #Include "video.ahk"
 #Include "moves.ahk"
 #Include "lists.ahk"
 #Include "videopicker.ahk"
-#Include "flow_loop.ahk"
-#Include "utils.ahk"        ; ← χρήση Utils.TryParseInt για καθάρισμα SetGuiRect
+#Include "flow_loop.ahk"     
 #Include "initialize.ahk"   ; ⬅️ Helpers εκκίνησης (helpLine + version check)
 
 class FlowController {
