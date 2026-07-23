@@ -4,17 +4,24 @@
 #Include "../system/regex.ahk"
 
 class EdgeService {
-  __New(edgeExe, winSelector := "ahk_exe msedge.exe", smallDelayMs := 1500) {
-    this.exe := edgeExe
-    this.sel := winSelector
-    this.smallDelayMs := smallDelayMs
+__New(
+  edgeExe,
+  winSelector := "ahk_exe msedge.exe",
+  smallDelayMs := 1500,
+  profileDirForce := ""
+) {
+  this.exe := edgeExe
+  this.sel := winSelector
+  this.smallDelayMs := smallDelayMs
+  this.profileDirForce := profileDirForce
 }
+
 
   ; ---------- Profile resolve ----------
   ResolveProfileDirByName(displayName) {
-    if (Settings.PROFILE_DIR_FORCE != "") {
-      return Settings.PROFILE_DIR_FORCE
-    }
+  if (this.profileDirForce != "") {
+  return this.profileDirForce
+}
     c := RegexLib.Chars
     base := EnvGet("LOCALAPPDATA") . c.BS "Microsoft" c.BS "Edge" c.BS "User Data" c.BS
     if (!this._dirExist(base)) {
