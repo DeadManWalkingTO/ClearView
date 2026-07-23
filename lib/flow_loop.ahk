@@ -3,9 +3,9 @@
 
 #Include "..\core\system\utils.ahk"     ; ← Utils.FormatDurationMs(), Utils.MsToSec(), Utils.RandomInt()
 
-#Include "settings.ahk"
-#Include "videopicker.ahk"
-#Include "moves.ahk"       ; ← ClickCenter(), MoveMouseRandom4()
+#Include "..\lib\settings.ahk"
+#Include "..\lib\videopicker.ahk"
+#Include "..\core\automation\mouse.ahk"       ; ← ClickCenter(), MoveMouseRandom4()
 
 ; FlowLoop:
 ; - Τρέχει τον συνεχόμενο κύκλο: Pick -> Navigate -> Ensure -> Wait.
