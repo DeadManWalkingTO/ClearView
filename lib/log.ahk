@@ -1,6 +1,6 @@
 ; ==================== lib/log.ahk ====================
 #Requires AutoHotkey v2.0
-#Include "..\core\system\regex.ahk"
+#Include "../core/system/regex.ahk"
 #Include "settings.ahk"
 
 class Logger
