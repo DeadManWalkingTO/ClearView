@@ -3,7 +3,7 @@
 
 #Include "..\core\system\utils.ahk"
 
-#Include "versions.ahk"
+#Include "..\core\system\versions.ahk"
 ; Helpers εκκίνησης UI (Internet + helpLine) και ελαφρύς έλεγχος έκδοσης.
 ; Κανόνες: AHK v2, πολυγραμμικά if, πλήρη try/catch, χωρίς &&/\.
 
