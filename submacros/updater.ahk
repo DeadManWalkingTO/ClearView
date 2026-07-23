@@ -77,7 +77,13 @@ class Updater
       }
     }
 
-    zipUrl := "https://github.com/DeadManWalkingTO/ClearView/archive/refs/heads/main.zip"
+    zipUrl :=
+      "https://github.com/"
+    Settings.GITHUB_OWNER "/"
+    Settings.GITHUB_REPO
+    "/archive/refs/heads/"
+    Settings.UPDATE_ZIP_NAME
+
     tmpZip := Updater._composeTempZipPath()
 
     try {
