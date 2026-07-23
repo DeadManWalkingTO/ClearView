@@ -1,8 +1,8 @@
 ; ==================== lib/video.ahk ====================
 #Requires AutoHotkey v2.0
 #Include "..\core\system\utils.ahk"
-#Include "moves.ahk"
-#Include "settings.ahk"
+#Include "..\core\automation\mouse.ahk"
+#Include "..\lib\settings.ahk"
 
 
 class VideoService {
