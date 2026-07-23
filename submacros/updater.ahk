@@ -17,7 +17,10 @@ class Updater
   static RunUpdateFlow(logger := 0)
   {
     ; 1) Έλεγχος/σύγκριση μέσω Initializer.CheckVersions (SSOT)
-    info := Initializer.CheckVersions(logger, 3000)
+    info := Initializer.CheckVersions(
+      logger,
+      Settings.INTERNET_CHECK_TIMEOUT_MS
+    )
 
     ; Internet off
     if (!info.online)
