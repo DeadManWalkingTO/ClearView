@@ -1,6 +1,8 @@
 ; ==================== lib/initialize.ahk ====================
 #Requires AutoHotkey v2.0
+
 #Include "..\core\system\utils.ahk"
+
 #Include "versions.ahk"
 ; Helpers εκκίνησης UI (Internet + helpLine) και ελαφρύς έλεγχος έκδοσης.
 ; Κανόνες: AHK v2, πολυγραμμικά if, πλήρη try/catch, χωρίς &&/\.

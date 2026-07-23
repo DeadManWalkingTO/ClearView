@@ -1,10 +1,12 @@
 ; ==================== lib/flow.ahk ====================
 #Requires AutoHotkey v2.0
+
 #Include "..\core\system\utils.ahk"  ; ← χρήση Utils.TryParseInt για καθάρισμα SetGuiRect
 #Include "..\core\system\regex.ahk"
+#Include "..\core\edge\edge.ahk"
+#Include "..\core\edge\edge_profile.ahk" ; ⬅️ Χρησιμοποιούμε StartEdgeWithAppProfile / Ex
+
 #Include "settings.ahk"
-#Include "edge.ahk"
-#Include "edge_profile.ahk" ; ⬅️ Χρησιμοποιούμε StartEdgeWithAppProfile / Ex
 #Include "video.ahk"
 #Include "moves.ahk"
 #Include "lists.ahk"

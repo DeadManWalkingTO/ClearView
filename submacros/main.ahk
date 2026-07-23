@@ -7,8 +7,9 @@ SetWorkingDir(A_ScriptDir)
 ; --- Includes ---
 #Include "..\core\system\utils.ahk"     ; SSOT: CheckInternet
 #Include "..\core\system\regex.ahk"
+#Include "..\core\edge\edge.ahk"
+
 #Include ..\lib\settings.ahk
-#Include ..\lib\edge.ahk
 #Include ..\lib\video.ahk
 #Include ..\lib\moves.ahk
 #Include ..\lib\lists.ahk

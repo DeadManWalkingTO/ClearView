@@ -1,9 +1,11 @@
 ﻿; ==================== submacros/setup.ahk ====================
 #Requires AutoHotkey v2.0
+
 #Include "..\core\system\regex.ahk"
 #Include "..\lib\settings.ahk"
-#Include "..\lib\edge.ahk"
-#Include "..\lib\edge_profile.ahk" ; SSOT: StartEdgeWithAppProfile(url, newWindow := true, logger := 0)
+#Include "..\core\edge\edge.ahk"
+#Include "..\core\edge\edge_profile.ahk"  ; SSOT: StartEdgeWithAppProfile(url, newWindow := true, logger := 0)
+
 #Include ".\updater.ahk" ; ⬅️ ΝΕΟ: Updater με Skip/Proceed πολιτική
 
 ; Κλάση υπεύθυνη για τα κουμπιά "Εγκατάσταση" (1,2,3,4):
