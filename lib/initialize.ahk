@@ -117,8 +117,19 @@ class Initializer
     }
     res.localVer := localVer
 
-    remoteUrl := "https://raw.githubusercontent.com/DeadManWalkingTO/ClearView/main/lib/settings.ahk"
-    remoteVer := Versions.TryGetRemoteAppVersion(remoteUrl, 4000, logger)
+ remoteUrl :=
+    "https://raw.githubusercontent.com/"
+    Settings.GITHUB_OWNER "/"
+    Settings.GITHUB_REPO "/"
+    Settings.GITHUB_BRANCH "/"
+    Settings.VERSION_FILE_PATH
+
+    remoteVer := Versions.TryGetRemoteAppVersion(
+    remoteUrl,
+    Settings.VERSION_CHECK_TIMEOUT_MS,
+    logger
+)
+
     if (remoteVer = "")
     {
       try {
